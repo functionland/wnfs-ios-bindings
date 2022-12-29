@@ -3,19 +3,19 @@ pub mod ios {
     extern crate libc;
     use crate::store::BridgedStore;
     use anyhow::Result;
-    use libipld::cbor::cbor::NULL;
+    
     use libipld::Cid;
-    use log::{trace, Level};
-    use openssl::conf::Conf;
-    use std::any::Any;
+    use log::{trace};
+    
+    
     use std::boxed::Box;
     use std::ffi::{CStr, CString};
     use std::os::raw::c_char;
     use std::ptr::null_mut;
     use wnfs::private::PrivateRef;
     use wnfs::Metadata;
-    use wnfsutils::blockstore::{FFIFriendlyBlockStore, FFIStore};
-    use wnfsutils::kvstore::KVBlockStore;
+    use wnfsutils::blockstore::{FFIFriendlyBlockStore};
+    
     use wnfsutils::private_forest::PrivateDirectoryHelper;
 
     #[repr(C)]
@@ -25,7 +25,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn createPrivateForestNative(fula_client: *const c_char) -> *mut c_char {
+    pub extern "C" fn createPrivateForestNative(_fula_client: *const c_char) -> *mut c_char {
         trace!("**********************createPrivateForest started**************");
         let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
@@ -43,7 +43,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn getPrivateRefNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
         cid: *const c_char,
@@ -69,7 +69,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn createRootDirNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
         cid: *const c_char,
@@ -106,7 +106,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn writeFileFromPathNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -119,8 +119,8 @@ pub mod ios {
         unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
-            let old_private_ref = private_ref.to_owned();
-            let old_cid = cid.to_owned();
+            let _old_private_ref = private_ref.to_owned();
+            let _old_cid = cid.to_owned();
 
             let forest_res = helper.synced_load_forest(cid);
             if forest_res.is_ok() {
@@ -163,7 +163,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFilestreamToPathNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -198,7 +198,7 @@ pub mod ios {
                 "wnfs11 **********************readFilestreamToPathNative finished**************"
             );
             if result.is_ok() {
-                let res = result.ok().unwrap();
+                let _res = result.ok().unwrap();
                 CString::new(filename)
                     .expect("Failed to serialize result")
                     .into_raw()
@@ -216,7 +216,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFileToPathNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -251,7 +251,7 @@ pub mod ios {
             );
             trace!("wnfs11 **********************readFileToPathNative finished**************");
             if result.is_ok() {
-                let res = result.ok().unwrap();
+                let _res = result.ok().unwrap();
                 CString::new(filename)
                     .expect("Failed to serialize result")
                     .into_raw()
@@ -269,7 +269,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn writeFileNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -308,7 +308,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFileNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -340,7 +340,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mkdirNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -387,7 +387,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mvNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
@@ -427,7 +427,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn cpNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
@@ -467,7 +467,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn rmNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -500,7 +500,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn lsNative(
-        fula_client: *const c_char,
+        _fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -636,7 +636,7 @@ pub mod ios {
         for item in ls_result.iter() {
             let created = item.1.clone().get_created();
             let modification = item.1.clone().get_modified();
-            if (created.is_some() && modification.is_some()) {
+            if created.is_some() && modification.is_some() {
                 let filename: String = item.0.clone().to_string().to_owned();
                 let creation_time: String = created.unwrap().to_string().to_owned();
                 let modification_time: String = modification.unwrap().to_string().to_owned();
