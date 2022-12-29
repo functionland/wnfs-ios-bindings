@@ -1,0 +1,1 @@
+cbindgen: cbindgen --lang C -o wnfs.h .

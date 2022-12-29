@@ -10,6 +10,7 @@ name = "wnfs"
 crate-type = [ "staticlib" ]
 
 [dependencies]
+libc = "0.2.139"
 wnfs = {path = "dep/wnfs" }
 wnfsutils = {path = "dep/wnfsutils" }
 anyhow = "1.0.66"

@@ -1,14 +1,18 @@
-use std::any::Any;
-use anyhow::Result;
+use std::marker::PhantomData;
+
 use anyhow::Ok;
+use anyhow::Result;
 use wnfsutils::blockstore::FFIStore;
 
 pub struct BridgedStore<'a> {
-
+    fula_client: PhantomData<&'a u8>,
 }
 
 impl<'a> BridgedStore<'a> {
-    fn new(fula_client: dyn Any) -> Self {
+    pub fn new() -> Self {
+        Self {
+            fula_client: PhantomData,
+        }
     }
 }
 

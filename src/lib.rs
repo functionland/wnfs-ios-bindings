@@ -1,22 +1,22 @@
 pub mod store;
 pub mod ios {
     extern crate libc;
-    use std::any::Any;
-    use std::ffi::{CString};
-    use std::ptr::null;
-    use libipld::Cid;
+    use crate::store::BridgedStore;
+    use anyhow::Result;
     use libipld::cbor::cbor::NULL;
+    use libipld::Cid;
     use log::{trace, Level};
     use openssl::conf::Conf;
+    use std::any::Any;
+    use std::boxed::Box;
+    use std::ffi::{CStr, CString};
+    use std::os::raw::c_char;
+    use std::ptr::null_mut;
     use wnfs::private::PrivateRef;
     use wnfs::Metadata;
-    use wnfsutils::kvstore::KVBlockStore;
-    use anyhow::Result;
     use wnfsutils::blockstore::{FFIFriendlyBlockStore, FFIStore};
+    use wnfsutils::kvstore::KVBlockStore;
     use wnfsutils::private_forest::PrivateDirectoryHelper;
-    use std::os::raw::{c_char};
-    use crate::store::BridgedStore;
-    use std::boxed::Box;
 
     #[repr(C)]
     pub struct Config {
@@ -25,31 +25,31 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn createPrivateForestNative(
-        fula_client: dyn Any,
-    ) -> *mut c_char {
+    pub extern "C" fn createPrivateForestNative(fula_client: *const c_char) -> *mut c_char {
         trace!("**********************createPrivateForest started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
         trace!("**********************createPrivateForest finished**************");
         let private_forest = helper.synced_create_private_forest();
         if private_forest.is_ok() {
-            serialize_cid(private_forest.ok().unwrap()).into_inner()
+            serialize_cid(private_forest.ok().unwrap())
         } else {
-            CString::new("").expect("Failed to serialize result").into_raw()
+            CString::new("")
+                .expect("Failed to serialize result")
+                .into_raw()
         }
     }
 
     #[no_mangle]
     pub extern "C" fn getPrivateRefNative(
-        fula_client: dyn Any,
+        fula_client: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
         cid: *const c_char,
     ) -> *mut c_char {
         trace!("**********************getPrivateRefNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
@@ -58,25 +58,27 @@ pub mod ios {
             let private_ref = helper.synced_get_private_ref(wnfs_key, forest_cid);
             trace!("**********************getPrivateRefNative finished**************");
             if private_ref.is_ok() {
-                return serialize_private_ref(private_ref.ok().unwrap()).into_inner();
+                return serialize_private_ref(private_ref.ok().unwrap());
             } else {
-                CString::new("").expect("Failed to serialize result").into_raw()
+                CString::new("")
+                    .expect("Failed to serialize result")
+                    .into_raw()
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn createRootDirNative(
-         fula_client: dyn Any,
-         wnfs_key_arr_size: libc::size_t,
-         wnfs_key_arr_pointer: *const libc::uint8_t,
-         cid: *const c_char,
+        fula_client: *const c_char,
+        wnfs_key_arr_size: libc::size_t,
+        wnfs_key_arr_pointer: *const libc::uint8_t,
+        cid: *const c_char,
     ) -> *mut Config {
         trace!("**********************createRootDirNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
-        unsafe{
+        unsafe {
             let forest_cid = deserialize_cid(cid);
             trace!("cid: {}", forest_cid);
             let forest_res = helper.synced_load_forest(forest_cid);
@@ -92,29 +94,29 @@ pub mod ios {
                 } else {
                     let msg = init_res.err().unwrap();
                     trace!("wnfsError in createRootDirNative: {:?}", msg);
-                    return null();
+                    return null_mut();
                 }
             } else {
                 let msg = forest_res.err().unwrap();
                 trace!("wnfsError in createRootDirNative: {:?}", msg);
-                return null();
+                return null_mut();
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn writeFileFromPathNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut Config {
         trace!("**********************writeFileFromPathNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
             let old_private_ref = private_ref.to_owned();
@@ -123,47 +125,52 @@ pub mod ios {
             let forest_res = helper.synced_load_forest(cid);
             if forest_res.is_ok() {
                 let forest = forest_res.ok().unwrap();
-                let root_dir_res = helper
-                    .synced_get_root_dir(forest.to_owned(), private_ref);
+                let root_dir_res = helper.synced_get_root_dir(forest.to_owned(), private_ref);
                 if root_dir_res.is_ok() {
                     let root_dir = root_dir_res.ok().unwrap();
                     let path_segments = prepare_path_segments(path_segments);
-                    let filename: String = CString::from_raw(cid).into_string().expect("Failed to parse input path segments");
-    
-                    let write_file_result = 
-                        helper.synced_write_file_from_path(forest.to_owned(), root_dir, &path_segments, &filename);
-                        trace!("**********************writeFileFromPathNative finished**************");
+                    let filename: String = CStr::from_ptr(filename)
+                        .to_str()
+                        .expect("Failed to parse input path segments")
+                        .into();
+                    let write_file_result = helper.synced_write_file_from_path(
+                        forest.to_owned(),
+                        root_dir,
+                        &path_segments,
+                        &filename,
+                    );
+                    trace!("**********************writeFileFromPathNative finished**************");
                     if write_file_result.is_ok() {
                         let (cid, private_ref) = write_file_result.ok().unwrap();
                         return serialize_config(cid, private_ref);
                     } else {
                         let msg = write_file_result.err().unwrap();
                         trace!("wnfsError in writeFileFromPathNative: {:?}", msg);
-                        return null();
+                        return null_mut();
                     }
                 } else {
                     let msg = root_dir_res.err().unwrap();
                     trace!("wnfsError in writeFileFromPathNative: {:?}", msg);
-                    return null();
+                    return null_mut();
                 }
             } else {
                 let msg = forest_res.err().unwrap();
                 trace!("wnfsError in writeFileFromPathNative: {:?}", msg);
-                return null();
+                return null_mut();
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn readFilestreamToPathNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut c_char {
         trace!("wnfs11 **********************readFilestreamToPathNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
@@ -175,31 +182,48 @@ pub mod ios {
                 .synced_get_root_dir(forest.to_owned(), private_ref)
                 .unwrap();
             let path_segments = prepare_path_segments(path_segments);
-            let filename: String = CString::from_raw(cid).into_string().expect("Failed to parse input path segments");
-
+            let filename: String = CStr::from_ptr(filename)
+                .to_str()
+                .expect("Failed to parse input path segments")
+                .into();
             trace!("wnfs11 **********************readFilestreamToPathNative filename created**************");
-            let result = helper.synced_read_filestream_to_path(&filename, forest.to_owned(), root_dir, &path_segments, 0);
-            trace!("wnfs11 **********************readFilestreamToPathNative finished**************");
+            let result = helper.synced_read_filestream_to_path(
+                &filename,
+                forest.to_owned(),
+                root_dir,
+                &path_segments,
+                0,
+            );
+            trace!(
+                "wnfs11 **********************readFilestreamToPathNative finished**************"
+            );
             if result.is_ok() {
                 let res = result.ok().unwrap();
-                CString::new(filename).expect("Failed to serialize result").into_raw()
+                CString::new(filename)
+                    .expect("Failed to serialize result")
+                    .into_raw()
             } else {
-                trace!("wnfsError occured in readFilestreamToPathNative on result: {:?}", result.err().unwrap());
-                CString::new("").expect("Failed to serialize result").into_raw()
+                trace!(
+                    "wnfsError occured in readFilestreamToPathNative on result: {:?}",
+                    result.err().unwrap()
+                );
+                CString::new("")
+                    .expect("Failed to serialize result")
+                    .into_raw()
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn readFileToPathNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut c_char {
         trace!("wnfs11 **********************readFileToPathNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
@@ -211,25 +235,41 @@ pub mod ios {
                 .synced_get_root_dir(forest.to_owned(), private_ref)
                 .unwrap();
             let path_segments = prepare_path_segments(path_segments);
-            let filename: String = CString::from_raw(cid).into_string().expect("Failed to parse input path segments");
+            let filename: String = CStr::from_ptr(filename)
+                .to_str()
+                .expect("Failed to parse input path segments")
+                .into();
 
-            trace!("wnfs11 **********************readFileToPathNative filename created**************");
-            let result = helper.synced_read_file_to_path(forest.to_owned(), root_dir, &path_segments, &filename);
+            trace!(
+                "wnfs11 **********************readFileToPathNative filename created**************"
+            );
+            let result = helper.synced_read_file_to_path(
+                forest.to_owned(),
+                root_dir,
+                &path_segments,
+                &filename,
+            );
             trace!("wnfs11 **********************readFileToPathNative finished**************");
             if result.is_ok() {
                 let res = result.ok().unwrap();
-                CString::new(filename).expect("Failed to serialize result").into_raw()
-
+                CString::new(filename)
+                    .expect("Failed to serialize result")
+                    .into_raw()
             } else {
-                trace!("wnfsError occured in readFileToPathNative {:?}", result.err().unwrap());
-                CString::new("").expect("Failed to serialize result").into_raw()
+                trace!(
+                    "wnfsError occured in readFileToPathNative {:?}",
+                    result.err().unwrap()
+                );
+                CString::new("")
+                    .expect("Failed to serialize result")
+                    .into_raw()
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn writeFileNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -237,10 +277,10 @@ pub mod ios {
         content_arr_pointer: *const libc::uint8_t,
     ) -> *mut Config {
         trace!("**********************writeFileNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -251,7 +291,7 @@ pub mod ios {
             let path_segments = prepare_path_segments(path_segments);
             let content = c_array_to_vec(content_arr_size, content_arr_pointer);
             //let (cid, private_ref) =
-            let write_file_res = 
+            let write_file_res =
                 helper.synced_write_file(forest.to_owned(), root_dir, &path_segments, content, 0);
             trace!("**********************writeFileNative finished**************");
             if write_file_res.is_ok() {
@@ -259,30 +299,27 @@ pub mod ios {
                 let config = serialize_config(cid, private_ref);
                 return config;
             } else {
-                let msg = write_file_res
-                    .err()
-                    .unwrap();
+                let msg = write_file_res.err().unwrap();
                 trace!("wnfsError in writeFileNative: {:?}", msg);
-                return null();
-                
+                return null_mut();
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn readFileNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
-        len: *mut i32, capacity: *mut i32
+        len: *mut i32,
+        capacity: *mut i32,
     ) -> *mut u8 {
         trace!("**********************readFileNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -294,82 +331,70 @@ pub mod ios {
             trace!("**********************readFileNative finished**************");
             let result = helper.synced_read_file(forest.to_owned(), root_dir, &path_segments);
             if result.is_err() {
-                let empty_vec: Vec<u8> = Vec::new();
-                return vec_to_c_array(
-                    empty_vec,
-                    len, capacity
-                );
+                let empty_vec = &mut Vec::new();
+                return vec_to_c_array(empty_vec, len, capacity);
             }
-            vec_to_c_array(
-                result.ok().unwrap(),
-                len, capacity,
-            )
+            vec_to_c_array(&mut result.ok().unwrap(), len, capacity)
         }
     }
 
     #[no_mangle]
     pub extern "C" fn mkdirNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************mkDirNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
 
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
             let forest_res = helper.synced_load_forest(cid);
             if forest_res.is_ok() {
                 let forest = forest_res.ok().unwrap();
-                let root_dir_res = helper
-                    .synced_get_root_dir(forest.to_owned(), private_ref);
-                    if root_dir_res.is_ok() {
-                        let root_dir = root_dir_res.ok().unwrap();
-                        let path_segments = prepare_path_segments(path_segments);
-                        let mkdir_res = helper.synced_mkdir(forest.to_owned(), root_dir, &path_segments);
-                        if mkdir_res.is_ok() {
-                            let (cid, private_ref) = mkdir_res.ok().unwrap();
-                            trace!("**********************mkDirNative finished**************");
-                            serialize_config(cid, private_ref)
-                        } else {
-                            let msg = mkdir_res
-                                .err()
-                                .unwrap();
-                            trace!("wnfsError in mkdirNative: {:?}", msg);
-                            return null();
-                        }
+                let root_dir_res = helper.synced_get_root_dir(forest.to_owned(), private_ref);
+                if root_dir_res.is_ok() {
+                    let root_dir = root_dir_res.ok().unwrap();
+                    let path_segments = prepare_path_segments(path_segments);
+                    let mkdir_res =
+                        helper.synced_mkdir(forest.to_owned(), root_dir, &path_segments);
+                    if mkdir_res.is_ok() {
+                        let (cid, private_ref) = mkdir_res.ok().unwrap();
+                        trace!("**********************mkDirNative finished**************");
+                        serialize_config(cid, private_ref)
                     } else {
-                        let msg = root_dir_res
-                            .err()
-                            .unwrap();
+                        let msg = mkdir_res.err().unwrap();
                         trace!("wnfsError in mkdirNative: {:?}", msg);
-                        return null();
+                        return null_mut();
                     }
+                } else {
+                    let msg = root_dir_res.err().unwrap();
+                    trace!("wnfsError in mkdirNative: {:?}", msg);
+                    return null_mut();
+                }
             } else {
-                let msg = forest_res
-                    .err()
-                    .unwrap();
+                let msg = forest_res.err().unwrap();
                 trace!("wnfsError in mkdirNative: {:?}", msg);
-                return null();
+                return null_mut();
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn mvNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************mvNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
 
@@ -383,33 +408,37 @@ pub mod ios {
                 .unwrap();
             let source_path_segments = prepare_path_segments(source_path_segments);
             let target_path_segments = prepare_path_segments(target_path_segments);
-            let result = helper.synced_mv(forest.to_owned(), root_dir, &source_path_segments, &target_path_segments);
+            let result = helper.synced_mv(
+                forest.to_owned(),
+                root_dir,
+                &source_path_segments,
+                &target_path_segments,
+            );
             trace!("**********************mvNative finished**************");
             if result.is_ok() {
                 let (cid, private_ref) = result.ok().unwrap();
                 return serialize_config(cid, private_ref);
-            }else {
+            } else {
                 trace!("wnfsError occured in mvNative: {:?}", result.err().unwrap());
-                return null();
+                return null_mut();
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn cpNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************cpNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
 
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -419,32 +448,36 @@ pub mod ios {
                 .unwrap();
             let source_path_segments = prepare_path_segments(source_path_segments);
             let target_path_segments = prepare_path_segments(target_path_segments);
-            let result = helper.synced_cp(forest.to_owned(), root_dir, &source_path_segments, &target_path_segments);
+            let result = helper.synced_cp(
+                forest.to_owned(),
+                root_dir,
+                &source_path_segments,
+                &target_path_segments,
+            );
             trace!("**********************mvNative finished**************");
             if result.is_ok() {
                 let (cid, private_ref) = result.ok().unwrap();
                 return serialize_config(cid, private_ref);
-            }else {
+            } else {
                 trace!("wnfsError occured in cpNative: {:?}", result.err().unwrap());
-                return null();
+                return null_mut();
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn rmNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************rmNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
 
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -458,81 +491,77 @@ pub mod ios {
             if result.is_ok() {
                 let (cid, private_ref) = result.ok().unwrap();
                 return serialize_config(cid, private_ref);
-            }else {
+            } else {
                 trace!("wnfsError occured in rmNative: {:?}", result.err().unwrap());
-                return null();
+                return null_mut();
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn lsNative(
-         fula_client: dyn Any,
+        fula_client: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
-        len: *mut i32, capacity: *mut i32
+        len: *mut i32,
+        capacity: *mut i32,
     ) -> *mut u8 {
         trace!("**********************lsNative started**************");
-        let store = BridgedStore::new(fula_client);
+        let store = BridgedStore::new();
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
 
-        unsafe{
+        unsafe {
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
             let forest_res = helper.synced_load_forest(cid);
             if forest_res.is_ok() {
                 let forest = forest_res.ok().unwrap();
-                let root_dir_res = helper
-                    .synced_get_root_dir(forest.to_owned(), private_ref);
+                let root_dir_res = helper.synced_get_root_dir(forest.to_owned(), private_ref);
                 if root_dir_res.is_ok() {
                     let root_dir = root_dir_res.ok().unwrap();
                     let path_segments = prepare_path_segments(path_segments);
-                    let ls_res = helper.synced_ls_files(forest.to_owned(), root_dir, &path_segments);
+                    let ls_res =
+                        helper.synced_ls_files(forest.to_owned(), root_dir, &path_segments);
                     if ls_res.is_ok() {
-                        let output =
-                            prepare_ls_output(ls_res.ok().unwrap());
+                        let output = prepare_ls_output(ls_res.ok().unwrap());
                         trace!("**********************lsNative finished**************");
                         if output.is_ok() {
-                            let res = output.ok().unwrap();
-                            return vec_to_c_array(
-                                res,
-                                len, capacity
-                            );
+                            let res = &mut output.ok().unwrap();
+                            return vec_to_c_array(res, len, capacity);
                         } else {
-                            trace!("wnfsError occured in lsNative output: {:?}", output.err().unwrap().to_string());
-                            let empty_bytes: Vec<u8> = vec![0];
-                            return vec_to_c_array(
-                                empty_bytes,
-                                len, capacity
+                            trace!(
+                                "wnfsError occured in lsNative output: {:?}",
+                                output.err().unwrap().to_string()
                             );
+                            let empty_bytes = &mut vec![0];
+                            return vec_to_c_array(&mut empty_bytes.to_owned(), len, capacity);
                         }
                     } else {
-                        trace!("wnfsError occured in lsNative ls_res: {:?}", ls_res.err().unwrap().to_string());
-                        let empty_bytes: Vec<u8> = vec![0];
-                        return vec_to_c_array(
-                            empty_bytes,
-                            len, capacity
+                        trace!(
+                            "wnfsError occured in lsNative ls_res: {:?}",
+                            ls_res.err().unwrap().to_string()
                         );
+                        let empty_bytes: Vec<u8> = vec![0];
+                        return vec_to_c_array(&mut empty_bytes.to_owned(), len, capacity);
                     }
                 } else {
-                    trace!("wnfsError occured in lsNative root_dir_res: {:?}", root_dir_res.err().unwrap().to_string());
-                    let empty_bytes: Vec<u8> = vec![0];
-                    return vec_to_c_array(
-                        empty_bytes,
-                        len, capacity
+                    trace!(
+                        "wnfsError occured in lsNative root_dir_res: {:?}",
+                        root_dir_res.err().unwrap().to_string()
                     );
+                    let empty_bytes: Vec<u8> = vec![0];
+                    return vec_to_c_array(&mut empty_bytes.to_owned(), len, capacity);
                 }
             } else {
-                trace!("wnfsError occured in lsNative forest_res: {:?}", forest_res.err().unwrap().to_string());
-                let empty_bytes: Vec<u8> = vec![0];
-                return vec_to_c_array(
-                    empty_bytes,
-                    len, capacity
+                trace!(
+                    "wnfsError occured in lsNative forest_res: {:?}",
+                    forest_res.err().unwrap().to_string()
                 );
+                let empty_bytes: Vec<u8> = vec![0];
+                return vec_to_c_array(&mut empty_bytes.to_owned(), len, capacity);
             }
         }
     }
@@ -541,13 +570,15 @@ pub mod ios {
         trace!("**********************serialize_config started**************");
         Box::into_raw(Box::new(Config {
             cid: serialize_cid(cid),
-            private_ref: serialize_private_ref(private_ref)
-         }))
+            private_ref: serialize_private_ref(private_ref),
+        }))
     }
 
     pub unsafe fn deserialize_cid(cid: *const c_char) -> Cid {
-        let cid_str: String = CString::from_raw(cid).into_string().expect("Failed to parse cid");
-    
+        let cid_str: String = CStr::from_ptr(cid)
+            .to_str()
+            .expect("Failed to parse cid")
+            .into();
         let cid = Cid::try_from(cid_str).unwrap();
         trace!("**********************deserialize_cid started**************");
         trace!(
@@ -555,7 +586,6 @@ pub mod ios {
             cid.to_string()
         );
         cid
-    
     }
 
     pub fn serialize_cid(cid: Cid) -> *mut c_char {
@@ -564,15 +594,22 @@ pub mod ios {
             "**********************serialize_cid cid={:?}",
             cid.to_string()
         );
-        CString::new(cid.to_string()).expect("Failed to serialize result").into_raw()
+        CString::new(cid.to_string())
+            .expect("Failed to serialize result")
+            .into_raw()
     }
 
     pub fn serialize_private_ref(private_ref: PrivateRef) -> *mut c_char {
-        CString::new(serde_json::to_string(&private_ref).unwrap()).expect("Failed to create private ref string").into_raw()
+        CString::new(serde_json::to_string(&private_ref).unwrap())
+            .expect("Failed to create private ref string")
+            .into_raw()
     }
 
     pub unsafe fn deserialize_private_ref(private_ref: *const c_char) -> PrivateRef {
-        let private_ref: String = CString::from_raw(private_ref).into_string().expect("Failed to parse private ref");
+        let private_ref: String = CStr::from_ptr(private_ref)
+            .to_str()
+            .expect("Failed to parse private ref")
+            .into();
         let pref = serde_json::from_str::<PrivateRef>(&private_ref).unwrap();
         trace!("**********************deserialize_pref started**************");
         trace!("**********************deserialize_pref pref={:?}", pref);
@@ -580,7 +617,10 @@ pub mod ios {
     }
 
     pub unsafe fn prepare_path_segments(path_segments: *const c_char) -> Vec<String> {
-        let path: String = CString::from_raw(path_segments).into_string().expect("Failed to parse input path segments");
+        let path: String = CStr::from_ptr(path_segments)
+            .to_str()
+            .expect("Failed to parse input path segments")
+            .into();
 
         PrivateDirectoryHelper::parse_path(path)
             .iter()
@@ -589,50 +629,50 @@ pub mod ios {
     }
 
     pub fn prepare_ls_output(ls_result: Vec<(String, Metadata)>) -> Result<Vec<u8>, String> {
-
         let mut result: Vec<u8> = Vec::new();
 
         let item_separator = "???".to_owned();
         let line_separator = "!!!".to_owned();
-                    for item in ls_result.iter() {
-                        
-                        let created = item.1.clone().get_created();
-                        let modification = item.1.clone().get_modified();
-                        if (created.is_some() && modification.is_some()) {
-                            let filename: String = item.0.clone().to_string().to_owned();
-                            let creation_time: String = created.unwrap().to_string().to_owned();
-                            let modification_time: String = modification.unwrap().to_string().to_owned();
+        for item in ls_result.iter() {
+            let created = item.1.clone().get_created();
+            let modification = item.1.clone().get_modified();
+            if (created.is_some() && modification.is_some()) {
+                let filename: String = item.0.clone().to_string().to_owned();
+                let creation_time: String = created.unwrap().to_string().to_owned();
+                let modification_time: String = modification.unwrap().to_string().to_owned();
 
-                            let row_string: String = format!("{}{}{}{}{}{}", 
-                                filename
-                                , item_separator
-                                , creation_time
-                                , item_separator
-                                , modification_time
-                                , line_separator
-                            );
-                            let row_byte = row_string.as_bytes().to_vec();
-                            result.append(&mut row_byte.to_owned());
-                        }
-                    }
-                    Ok(result)
-
+                let row_string: String = format!(
+                    "{}{}{}{}{}{}",
+                    filename,
+                    item_separator,
+                    creation_time,
+                    item_separator,
+                    modification_time,
+                    line_separator
+                );
+                let row_byte = row_string.as_bytes().to_vec();
+                result.append(&mut row_byte.to_owned());
+            }
+        }
+        Ok(result)
     }
 
-    pub unsafe fn c_array_to_vec(size: libc::size_t,
-        array_pointer: *const libc::uint8_t) -> Vec<u8> {
-        std::slice::from_raw_parts(array_pointer as *const u8, size as usize)
+    pub unsafe fn c_array_to_vec(
+        size: libc::size_t,
+        array_pointer: *const libc::uint8_t,
+    ) -> Vec<u8> {
+        std::slice::from_raw_parts(array_pointer as *const u8, size as usize).to_vec()
     }
 
-    pub fn vec_to_c_array(buf: Vec<u8>, len: *mut i32, capacity: *mut i32) -> *mut u8 {
+    pub fn vec_to_c_array(buf: &mut Vec<u8>, len: *mut i32, capacity: *mut i32) -> *mut u8 {
         unsafe {
             *len = buf.len() as i32;
             *capacity = buf.capacity() as i32;
         }
         let ptr = buf.as_mut_ptr();
-    
+
         std::mem::forget(ptr); // so that it is not destructed at the end of the scope
-        ptr    
+        ptr
     }
 
     #[no_mangle]
@@ -651,7 +691,7 @@ pub mod ios {
             return;
         }
         unsafe {
-            CString::from_raw(ptr);
+            drop(CString::from_raw(ptr));
         }
     }
 
