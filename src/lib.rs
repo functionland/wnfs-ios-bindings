@@ -3,19 +3,18 @@ pub mod ios {
     extern crate libc;
     use crate::store::BridgedStore;
     use anyhow::Result;
-    
+
     use libipld::Cid;
-    use log::{trace};
-    
-    
+    use log::trace;
+
     use std::boxed::Box;
     use std::ffi::{CStr, CString};
     use std::os::raw::c_char;
     use std::ptr::null_mut;
     use wnfs::private::PrivateRef;
     use wnfs::Metadata;
-    use wnfsutils::blockstore::{FFIFriendlyBlockStore};
-    
+    use wnfsutils::blockstore::FFIFriendlyBlockStore;
+
     use wnfsutils::private_forest::PrivateDirectoryHelper;
 
     #[repr(C)]
