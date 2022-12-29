@@ -1,3 +1,4 @@
+all: gen-c-header add-rust-targets aarch64-apple-darwin x86_64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios-macabi aarch64-apple-ios-macabi lipo-ios lipo-mac lipo-macabi xcode-build bundle
 gen-c-header: 
 	cbindgen --lang C -o include/wnfs.h .
 
@@ -7,7 +8,7 @@ add-rust-target-mac:
 add-rust-target-ios:
 	rustup target add aarch64-apple-darwin x86_64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios-macabi aarch64-apple-ios-macabi
 
-add-rust-targets: add-rust-ios add-rust-mac
+add-rust-targets: add-rust-target-ios add-rust-target-mac
 
 aarch64-apple-ios:
 	cargo build --release --target aarch64-apple-ios
