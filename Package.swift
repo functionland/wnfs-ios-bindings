@@ -18,7 +18,7 @@ let package = Package(
                 dependencies: ["Wnfs"]),
             .binaryTarget(
                 name: "Wnfs",
-                url: "https://github.com/functionland/wnfs-ios/bundle.zip",
+                url: "https://github.com/functionland/wnfs-ios/raw/main/bundle.zip",
                 checksum: "4f5a6c3486c1292b13dc814948d32b95da531b5c0aacd7a86bfdcf5baeb10a6b"),
             .testTarget(
                 name: "WnfsSwiftTests",
