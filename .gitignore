@@ -94,3 +94,9 @@ iOSInjectionProject/
 
 /target
 /Cargo.lock
+
+# Ignore the ios build files
+
+libwnfs*
+Wnfs.xc*
+# bundle.zip
