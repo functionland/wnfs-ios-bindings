@@ -14,6 +14,7 @@ pub mod ios {
     use wnfs::private::PrivateRef;
     use wnfs::Metadata;
     use wnfsutils::blockstore::FFIFriendlyBlockStore;
+    use wnfsutils::kvstore::KVBlockStore;
 
     use wnfsutils::private_forest::PrivateDirectoryHelper;
 
@@ -24,9 +25,12 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn createPrivateForestNative(_fula_client: *const c_char) -> *mut c_char {
+    pub unsafe extern "C" fn createPrivateForestNative(db_path: *const c_char) -> *mut c_char {
         trace!("**********************createPrivateForest started**************");
-        let store = BridgedStore::new();
+        let store = KVBlockStore::new(
+            CStr::from_ptr(db_path).to_str().unwrap().into(),
+            libipld::IpldCodec::DagCbor,
+        );
         let block_store = FFIFriendlyBlockStore::new(Box::new(store));
         let helper = &mut PrivateDirectoryHelper::new(block_store);
         trace!("**********************createPrivateForest finished**************");
@@ -42,16 +46,20 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn getPrivateRefNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
         cid: *const c_char,
     ) -> *mut c_char {
         trace!("**********************getPrivateRefNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let wnfs_key: Vec<u8> = c_array_to_vec(wnfs_key_arr_size, wnfs_key_arr_pointer);
             let forest_cid = deserialize_cid(cid);
             let private_ref = helper.synced_get_private_ref(wnfs_key, forest_cid);
@@ -68,16 +76,20 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn createRootDirNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
         cid: *const c_char,
     ) -> *mut Config {
         trace!("**********************createRootDirNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let forest_cid = deserialize_cid(cid);
             trace!("cid: {}", forest_cid);
             let forest_res = helper.synced_load_forest(forest_cid);
@@ -105,17 +117,21 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn writeFileFromPathNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut Config {
         trace!("**********************writeFileFromPathNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
             let _old_private_ref = private_ref.to_owned();
@@ -162,17 +178,21 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFilestreamToPathNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut c_char {
         trace!("wnfs11 **********************readFilestreamToPathNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -215,17 +235,21 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFileToPathNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
         filename: *const c_char,
     ) -> *mut c_char {
         trace!("wnfs11 **********************readFileToPathNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -268,7 +292,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn writeFileNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -276,10 +300,14 @@ pub mod ios {
         content_arr_pointer: *const libc::uint8_t,
     ) -> *mut Config {
         trace!("**********************writeFileNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -307,7 +335,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn readFileNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -315,10 +343,14 @@ pub mod ios {
         capacity: *mut i32,
     ) -> *mut u8 {
         trace!("**********************readFileNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -339,17 +371,20 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mkdirNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************mkDirNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
-
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -386,18 +421,21 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mvNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************mvNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
-
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -426,18 +464,21 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn cpNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************cpNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
-
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -466,17 +507,20 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn rmNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
     ) -> *mut Config {
         trace!("**********************rmNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
-
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
@@ -499,7 +543,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn lsNative(
-        _fula_client: *const c_char,
+        db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -507,11 +551,14 @@ pub mod ios {
         capacity: *mut i32,
     ) -> *mut u8 {
         trace!("**********************lsNative started**************");
-        let store = BridgedStore::new();
-        let block_store = FFIFriendlyBlockStore::new(Box::new(store));
-        let helper = &mut PrivateDirectoryHelper::new(block_store);
-
         unsafe {
+            let store = KVBlockStore::new(
+                CStr::from_ptr(db_path).to_str().unwrap().into(),
+                libipld::IpldCodec::DagCbor,
+            );
+            let block_store = FFIFriendlyBlockStore::new(Box::new(store));
+            let helper = &mut PrivateDirectoryHelper::new(block_store);
+
             let cid = deserialize_cid(cid);
             let private_ref = deserialize_private_ref(private_ref);
 
