@@ -25,7 +25,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub unsafe extern "C" fn createPrivateForestNative(db_path: *const c_char) -> *mut c_char {
+    pub unsafe extern "C" fn create_private_forest_native(db_path: *const c_char) -> *mut c_char {
         trace!("**********************createPrivateForest started**************");
         let store = KVBlockStore::new(
             CStr::from_ptr(db_path).to_str().unwrap().into(),
@@ -45,7 +45,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn getPrivateRefNative(
+    pub extern "C" fn get_private_ref_native(
         db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
@@ -75,7 +75,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn createRootDirNative(
+    pub extern "C" fn create_root_dir_native(
         db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const libc::uint8_t,
@@ -116,7 +116,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn writeFileFromPathNative(
+    pub extern "C" fn write_file_from_path_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -177,7 +177,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn readFilestreamToPathNative(
+    pub extern "C" fn read_filestream_to_path_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -234,7 +234,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn readFileToPathNative(
+    pub extern "C" fn read_file_to_path_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -291,7 +291,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn writeFileNative(
+    pub extern "C" fn write_file_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -334,7 +334,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn readFileNative(
+    pub extern "C" fn read_file_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -370,7 +370,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn mkdirNative(
+    pub extern "C" fn mkdir_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -420,7 +420,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn mvNative(
+    pub extern "C" fn mv_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -463,7 +463,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn cpNative(
+    pub extern "C" fn cp_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -506,7 +506,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn rmNative(
+    pub extern "C" fn rm_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -542,7 +542,7 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn lsNative(
+    pub extern "C" fn ls_native(
         db_path: *const c_char,
         cid: *const c_char,
         private_ref: *const c_char,
@@ -746,4 +746,16 @@ pub mod ios {
         let v = Vec::from_raw_parts(data, len as usize, capacity as usize);
         drop(v); // or it could be implicitly dropped
     }
+}
+
+#[cfg(test)]
+mod ios_tests {
+    use std::ffi::CString;
+
+    use crate::ios::create_private_forest_native;
+
+    unsafe fn test_overall(){
+        let forest_cid = create_private_forest_native(CString::new("./tmp/test_db").unwrap().into_raw());
+    }
+    
 }
