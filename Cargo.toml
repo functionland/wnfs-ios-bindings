@@ -26,3 +26,4 @@ tokio = { version = "1", features = ["full"] }
 rand = "0.8.5"
 libipld = { version = "0.15", features = ["dag-cbor", "derive", "serde-codec"] }
 kv = "0.24.0"
+sha256 = "1.1.1"

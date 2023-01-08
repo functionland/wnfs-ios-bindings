@@ -20,8 +20,8 @@ pub mod ios {
 
     #[repr(C)]
     pub struct Config {
-        cid: *const c_char,
-        private_ref: *const c_char,
+        pub cid: *const c_char,
+        pub private_ref: *const c_char,
     }
 
     #[no_mangle]
@@ -727,7 +727,7 @@ pub mod ios {
             return;
         }
         unsafe {
-            Box::from_raw(ptr);
+            drop(Box::from_raw(ptr));
         }
     }
 
@@ -750,12 +750,358 @@ pub mod ios {
 
 #[cfg(test)]
 mod ios_tests {
-    use std::ffi::CString;
+    use crate::ios::*;
+    use sha256::digest;
+    use std::{
+        default,
+        ffi::{CStr, CString},
+        fs,
+        os::raw::c_char,
+    };
 
-    use crate::ios::create_private_forest_native;
-
-    unsafe fn test_overall(){
-        let forest_cid = create_private_forest_native(CString::new("./tmp/test_db").unwrap().into_raw());
+    fn string_to_cstring(str_in: String) -> *const c_char {
+        return CString::new(str_in).unwrap().into_raw().cast_const();
     }
-    
+
+    unsafe fn cstring_to_string(str_in: *mut c_char) -> String {
+        return CStr::from_ptr(str_in).to_str().unwrap().to_string();
+    }
+
+    unsafe fn test_cfg(cfg: *mut Config) -> (*const c_char, *const c_char) {
+        assert!(!cfg.is_null(), "config should not be null");
+        assert!(!(*cfg).cid.is_null(), "cid should not be null");
+        assert!(
+            !(*cfg).private_ref.is_null(),
+            "private_ref should not be null"
+        );
+        let cid: String = CStr::from_ptr((*cfg).cid).to_str().unwrap().into();
+        let private_ref: String = CStr::from_ptr((*cfg).private_ref).to_str().unwrap().into();
+        println!("cid: {:?}", cid);
+        println!("private_ref: {:?}", private_ref);
+        (string_to_cstring(cid), string_to_cstring(private_ref))
+    }
+
+    #[test]
+    fn test_overall() {
+        unsafe {
+            let db_path = CString::new("./tmp/test_db").unwrap().into_raw();
+            let wnfs_key_string = digest("test");
+            let wnfs_key = CString::new(wnfs_key_string.to_owned())
+                .unwrap()
+                .into_raw()
+                .cast_const();
+            let forest_cid = create_private_forest_native(db_path);
+
+            let mut cfg = create_root_dir_native(
+                db_path,
+                wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
+                wnfs_key as *const libc::uint8_t,
+                forest_cid,
+            );
+            let (cid, private_ref) = test_cfg(cfg);
+
+            /*
+            let mut len: i32 = 0;
+            let mut capacity: i32 = 0;
+            let filenames_initial = ls_native(
+                db_path
+                ,string_to_cstring("bafyreieqp253whdfdrky7hxpqezfwbkjhjdbxcq4mcbp6bqf4jdbncbx4y".into())
+                ,string_to_cstring("{\"saturated_name_hash\":[229,31,96,28,24,238,207,22,36,150,191,37,235,68,191,144,219,250,5,97,85,208,156,134,137,74,25,209,6,66,250,127],\"content_key\":[172,199,245,151,207,21,26,76,52,109,93,57,118,232,9,230,149,46,37,137,174,42,119,29,102,175,25,149,213,204,45,15],\"revision_key\":[17,5,78,59,8,135,144,240,41,248,135,168,222,186,158,240,100,10,129,4,180,55,126,115,146,239,22,177,207,118,169,51]}".into())
+                ,string_to_cstring("root/".into()),
+                &mut len, &mut capacity
+            );
+            let names = String::from_raw_parts(filenames_initial, len as usize, capacity as usize);
+            println!("ls_initial. filenames_initial={}", names);
+            cbytes_free(filenames_initial, len, capacity);
+            */
+            // Write file
+            let test_content = "Hello, World!";
+            fs::write("./tmp/test.txt", test_content.to_owned()).expect("Unable to write file");
+
+            cfg = write_file_from_path_native(
+                db_path,
+                cid,
+                private_ref,
+                string_to_cstring("root/testfrompath.txt".into()),
+                string_to_cstring("./tmp/test.txt".into()),
+            );
+            let (cid, private_ref) = test_cfg(cfg);
+
+            // Read file
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                let content_from_path = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let mut content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_from_path))
+                        .unwrap();
+                assert_eq!(content, test_content.to_owned().to_string());
+                println!("read_file_from_path. content={}", content);
+            }
+            // Read content from path to path
+            {
+                let content_from_path_topath = read_file_to_path_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("./tmp/test2.txt".into()),
+                );
+                let mut content_str = cstring_to_string(content_from_path_topath);
+                println!("content_from_path_topath={}", content_str);
+                assert!(
+                    !content_from_path_topath.is_null(),
+                    "content_from_path_topath should not be null"
+                );
+                let mut read_content =
+                    fs::read_to_string(content_str).expect("Unable to read file");
+                assert_eq!(read_content, test_content.to_string());
+                println!("read_file_from_path_of_read_to. content={}", read_content);
+            }
+            // Read content from file stream to path
+            {
+                let content_stream_from_path_topath = read_filestream_to_path_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("./tmp/teststream.txt".into()),
+                );
+                let content_str = cstring_to_string(content_stream_from_path_topath);
+                println!("content_stream_from_path_topath={}", content_str);
+                assert!(
+                    !content_stream_from_path_topath.is_null(),
+                    "content_stream_from_path_topath should not be null"
+                );
+                let read_content = fs::read_to_string(content_str).expect("Unable to read file");
+                assert_eq!(read_content, test_content.to_string());
+                println!("read_file_from_path_of_read_to. content={}", read_content);
+            }
+            // CP: target folder must exists
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                cfg = cp_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("root/testfrompathcp.txt".into()),
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+                let content_cp = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathcp.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_cp)).unwrap();
+                println!("cp. content_cp={}", content);
+                assert_eq!(content, test_content.to_string());
+            }
+            // MV: target folder must exists
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                cfg = mv_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("root/testfrompathmv.txt".into()),
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+                let content_mv = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathmv.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_mv)).unwrap();
+                println!("mv. content_mv={}", content);
+                assert_eq!(content, test_content.to_string());
+            }
+            // RM#1
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                cfg = rm_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathmv.txt".into()),
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+                let content_rm1 = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathmv.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_rm1)).unwrap();
+                println!("rm#1. content_rm#1={}", content);
+                assert_eq!(content, "".to_string());
+            }
+            // RM#2
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                cfg = rm_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathcp.txt".into()),
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+                let content_rm2 = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompathcp.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_rm2)).unwrap();
+                println!("rm#1. content_rm#1={}", content);
+                assert_eq!(content, "".to_string());
+            }
+            //
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                let test_content_bytes = test_content.to_owned().as_mut_ptr() as *mut libc::uint8_t;
+                let test_content_size = test_content.as_bytes().len() as libc::size_t;
+                cfg = write_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/test.txt".into()),
+                    test_content_size,
+                    test_content_bytes,
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+
+                cfg = mkdir_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/test1".into()),
+                );
+                let (cid, private_ref) = test_cfg(cfg);
+
+                let content_ls = ls_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let file_names =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_ls)).unwrap();
+                println!("ls. fileNames={}", file_names);
+
+                let content_test = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/test.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_test)).unwrap();
+                println!("read. content={}", test_content);
+                assert_eq!(content, test_content.to_string());
+            }
+            println!("All tests before reload passed");
+
+            // Testing reload Directory
+            {
+                let mut len: i32 = 0;
+                let mut capacity: i32 = 0;
+                println!(
+                    "wnfs12 Testing reload with cid={} & wnfsKey={}",
+                    cstring_to_string(cid.cast_mut()),
+                    wnfs_key_string
+                );
+                let private_ref_reload = get_private_ref_native(
+                    db_path,
+                    wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
+                    wnfs_key as *const libc::uint8_t,
+                    cid,
+                );
+                println!(
+                    "wnfs12 original PrivateRef. private_ref={}",
+                    cstring_to_string(private_ref.cast_mut())
+                );
+                println!(
+                    "wnfs12 getPrivateRef. private_ref={}",
+                    cstring_to_string(private_ref_reload)
+                );
+                assert!(
+                    !private_ref_reload.is_null(),
+                    "private_ref should not be null"
+                );
+
+                let content_reloaded = read_file_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/test.txt".into()),
+                    &mut len,
+                    &mut capacity,
+                );
+                println!("len: {}, cap: {}", len, capacity);
+                let content =
+                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_reloaded))
+                        .unwrap();
+                println!("read. content={}", content);
+                assert_eq!(content, test_content.to_string());
+            }
+            // Read content from path to path (reloaded)
+            {
+                let content_from_path_topath_reloaded = read_file_to_path_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("./tmp/test2.txt".into()),
+                );
+                let content_str = cstring_to_string(content_from_path_topath_reloaded);
+                println!("content_from_path_topath_reloaded={}", content_str);
+                assert!(
+                    !content_from_path_topath_reloaded.is_null(),
+                    "content_from_path_topath_reloaded should not be null"
+                );
+                let read_content = fs::read_to_string(content_str).expect("Unable to read file");
+                assert_eq!(read_content, test_content.to_string());
+                println!("read_file_from_path_of_read_to. content={}", read_content);
+            }
+        }
+    }
 }
