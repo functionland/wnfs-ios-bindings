@@ -4,9 +4,9 @@ pub mod ios {
     use crate::store::BridgedStore;
     use anyhow::Result;
 
+    use ::core::mem::MaybeUninit as MU;
     use libipld::Cid;
     use log::trace;
-
     use std::boxed::Box;
     use std::ffi::{CStr, CString};
     use std::os::raw::c_char;
@@ -48,7 +48,7 @@ pub mod ios {
     pub extern "C" fn get_private_ref_native(
         db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
-        wnfs_key_arr_pointer: *const libc::uint8_t,
+        wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
     ) -> *mut c_char {
         trace!("**********************getPrivateRefNative started**************");
@@ -78,7 +78,7 @@ pub mod ios {
     pub extern "C" fn create_root_dir_native(
         db_path: *const c_char,
         wnfs_key_arr_size: libc::size_t,
-        wnfs_key_arr_pointer: *const libc::uint8_t,
+        wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
     ) -> *mut Config {
         trace!("**********************createRootDirNative started**************");
@@ -297,7 +297,7 @@ pub mod ios {
         private_ref: *const c_char,
         path_segments: *const c_char,
         content_arr_size: libc::size_t,
-        content_arr_pointer: *const libc::uint8_t,
+        content_arr_pointer: *const u8,
     ) -> *mut Config {
         trace!("**********************writeFileNative started**************");
         unsafe {
@@ -317,6 +317,7 @@ pub mod ios {
                 .unwrap();
             let path_segments = prepare_path_segments(path_segments);
             let content = c_array_to_vec(content_arr_size, content_arr_pointer);
+
             //let (cid, private_ref) =
             let write_file_res =
                 helper.synced_write_file(forest.to_owned(), root_dir, &path_segments, content, 0);
@@ -339,8 +340,8 @@ pub mod ios {
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
-        len: *mut i32,
-        capacity: *mut i32,
+        len: *mut libc::size_t,
+        capacity: *mut libc::size_t,
     ) -> *mut u8 {
         trace!("**********************readFileNative started**************");
         unsafe {
@@ -547,8 +548,8 @@ pub mod ios {
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
-        len: *mut i32,
-        capacity: *mut i32,
+        len: *mut libc::size_t,
+        capacity: *mut libc::size_t,
     ) -> *mut u8 {
         trace!("**********************lsNative started**************");
         unsafe {
@@ -703,22 +704,25 @@ pub mod ios {
         Ok(result)
     }
 
-    pub unsafe fn c_array_to_vec(
-        size: libc::size_t,
-        array_pointer: *const libc::uint8_t,
-    ) -> Vec<u8> {
+    pub unsafe fn c_array_to_vec(size: libc::size_t, array_pointer: *const u8) -> Vec<u8> {
         std::slice::from_raw_parts(array_pointer as *const u8, size as usize).to_vec()
     }
 
-    pub fn vec_to_c_array(buf: &mut Vec<u8>, len: *mut i32, capacity: *mut i32) -> *mut u8 {
-        unsafe {
-            *len = buf.len() as i32;
-            *capacity = buf.capacity() as i32;
+    pub unsafe fn vec_to_c_array(
+        buf: &mut Vec<u8>,
+        len: *mut usize,
+        capacity: *mut usize,
+    ) -> *mut u8 {
+        *len = buf.len();
+        *capacity = buf.capacity();
+        let ptr = unsafe { ::libc::malloc(buf.len()) };
+        if ptr.is_null() {
+            return ptr as *mut _;
         }
-        let ptr = buf.as_mut_ptr();
-
-        std::mem::forget(ptr); // so that it is not destructed at the end of the scope
-        ptr
+        let dst = ::core::slice::from_raw_parts_mut(ptr.cast::<MU<u8>>(), buf.len());
+        let src = ::core::slice::from_raw_parts(buf.as_ptr().cast::<MU<u8>>(), buf.len());
+        dst.copy_from_slice(src);
+        ptr as *mut _
     }
 
     #[no_mangle]
@@ -782,6 +786,21 @@ mod ios_tests {
     }
 
     #[test]
+    fn test_c_array() {
+        unsafe {
+            let mut test_content: String = "Hello, World!".into();
+            let mut len: usize = 0;
+            let mut capacity: usize = 0;
+            let content_from_path =
+                vec_to_c_array(test_content.as_mut_vec(), &mut len, &mut capacity);
+            println!("len: {}, cap: {}", len, capacity);
+            let content =
+                String::from_utf8(c_array_to_vec(len as libc::size_t, content_from_path)).unwrap();
+            assert_eq!(content, test_content.to_owned().to_string());
+        }
+    }
+
+    #[test]
     fn test_overall() {
         unsafe {
             let db_path = CString::new("./tmp/test_db").unwrap().into_raw();
@@ -795,14 +814,14 @@ mod ios_tests {
             let mut cfg = create_root_dir_native(
                 db_path,
                 wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
-                wnfs_key as *const libc::uint8_t,
+                wnfs_key as *const u8,
                 forest_cid,
             );
-            let (cid, private_ref) = test_cfg(cfg);
+            let (mut cid, mut private_ref) = test_cfg(cfg);
 
             /*
-            let mut len: i32 = 0;
-            let mut capacity: i32 = 0;
+            let mut len: usize = 0;
+            let mut capacity: usize = 0;
             let filenames_initial = ls_native(
                 db_path
                 ,string_to_cstring("bafyreieqp253whdfdrky7hxpqezfwbkjhjdbxcq4mcbp6bqf4jdbncbx4y".into())
@@ -818,19 +837,19 @@ mod ios_tests {
             let test_content = "Hello, World!";
             fs::write("./tmp/test.txt", test_content.to_owned()).expect("Unable to write file");
 
-            cfg = write_file_from_path_native(
-                db_path,
-                cid,
-                private_ref,
-                string_to_cstring("root/testfrompath.txt".into()),
-                string_to_cstring("./tmp/test.txt".into()),
-            );
-            let (cid, private_ref) = test_cfg(cfg);
-
             // Read file
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                cfg = write_file_from_path_native(
+                    db_path,
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("./tmp/test.txt".into()),
+                );
+                (cid, private_ref) = test_cfg(cfg);
+
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 let content_from_path = read_file_native(
                     db_path,
                     cid,
@@ -839,8 +858,8 @@ mod ios_tests {
                     &mut len,
                     &mut capacity,
                 );
-                println!("len: {}, cap: {}", len, capacity);
-                let mut content =
+
+                let content =
                     String::from_utf8(c_array_to_vec(len as libc::size_t, content_from_path))
                         .unwrap();
                 assert_eq!(content, test_content.to_owned().to_string());
@@ -855,14 +874,13 @@ mod ios_tests {
                     string_to_cstring("root/testfrompath.txt".into()),
                     string_to_cstring("./tmp/test2.txt".into()),
                 );
-                let mut content_str = cstring_to_string(content_from_path_topath);
+                let content_str = cstring_to_string(content_from_path_topath);
                 println!("content_from_path_topath={}", content_str);
                 assert!(
                     !content_from_path_topath.is_null(),
                     "content_from_path_topath should not be null"
                 );
-                let mut read_content =
-                    fs::read_to_string(content_str).expect("Unable to read file");
+                let read_content = fs::read_to_string(content_str).expect("Unable to read file");
                 assert_eq!(read_content, test_content.to_string());
                 println!("read_file_from_path_of_read_to. content={}", read_content);
             }
@@ -887,8 +905,8 @@ mod ios_tests {
             }
             // CP: target folder must exists
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 cfg = cp_native(
                     db_path,
                     cid,
@@ -896,7 +914,7 @@ mod ios_tests {
                     string_to_cstring("root/testfrompath.txt".into()),
                     string_to_cstring("root/testfrompathcp.txt".into()),
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
                 let content_cp = read_file_native(
                     db_path,
                     cid,
@@ -913,8 +931,8 @@ mod ios_tests {
             }
             // MV: target folder must exists
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 cfg = mv_native(
                     db_path,
                     cid,
@@ -922,7 +940,7 @@ mod ios_tests {
                     string_to_cstring("root/testfrompath.txt".into()),
                     string_to_cstring("root/testfrompathmv.txt".into()),
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
                 let content_mv = read_file_native(
                     db_path,
                     cid,
@@ -939,15 +957,15 @@ mod ios_tests {
             }
             // RM#1
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 cfg = rm_native(
                     db_path,
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathmv.txt".into()),
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
                 let content_rm1 = read_file_native(
                     db_path,
                     cid,
@@ -964,15 +982,15 @@ mod ios_tests {
             }
             // RM#2
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 cfg = rm_native(
                     db_path,
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathcp.txt".into()),
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
                 let content_rm2 = read_file_native(
                     db_path,
                     cid,
@@ -989,19 +1007,26 @@ mod ios_tests {
             }
             //
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
-                let test_content_bytes = test_content.to_owned().as_mut_ptr() as *mut libc::uint8_t;
-                let test_content_size = test_content.as_bytes().len() as libc::size_t;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
+                println!(
+                    "********************** test content: {}",
+                    test_content.to_owned()
+                );
+                let test_content_ptr = vec_to_c_array(
+                    test_content.to_string().as_mut_vec(),
+                    &mut len,
+                    &mut capacity,
+                );
                 cfg = write_file_native(
                     db_path,
                     cid,
                     private_ref,
                     string_to_cstring("root/test.txt".into()),
-                    test_content_size,
-                    test_content_bytes,
+                    len,
+                    test_content_ptr,
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
 
                 cfg = mkdir_native(
                     db_path,
@@ -1009,7 +1034,7 @@ mod ios_tests {
                     private_ref,
                     string_to_cstring("root/test1".into()),
                 );
-                let (cid, private_ref) = test_cfg(cfg);
+                (cid, private_ref) = test_cfg(cfg);
 
                 let content_ls = ls_native(
                     db_path,
@@ -1035,15 +1060,15 @@ mod ios_tests {
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
                     String::from_utf8(c_array_to_vec(len as libc::size_t, content_test)).unwrap();
-                println!("read. content={}", test_content);
+                println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }
             println!("All tests before reload passed");
 
             // Testing reload Directory
             {
-                let mut len: i32 = 0;
-                let mut capacity: i32 = 0;
+                let mut len: usize = 0;
+                let mut capacity: usize = 0;
                 println!(
                     "wnfs12 Testing reload with cid={} & wnfsKey={}",
                     cstring_to_string(cid.cast_mut()),
@@ -1052,7 +1077,7 @@ mod ios_tests {
                 let private_ref_reload = get_private_ref_native(
                     db_path,
                     wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
-                    wnfs_key as *const libc::uint8_t,
+                    wnfs_key as *const u8,
                     cid,
                 );
                 println!(
@@ -1089,7 +1114,7 @@ mod ios_tests {
                     db_path,
                     cid,
                     private_ref,
-                    string_to_cstring("root/testfrompath.txt".into()),
+                    string_to_cstring("root/test.txt".into()),
                     string_to_cstring("./tmp/test2.txt".into()),
                 );
                 let content_str = cstring_to_string(content_from_path_topath_reloaded);
