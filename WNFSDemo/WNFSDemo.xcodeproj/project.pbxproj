@@ -44,7 +44,7 @@
 		06E1262C2975D18200D43733 /* WNFSDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WNFSDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		06E126302975D18200D43733 /* WNFSDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoUITests.swift; sourceTree = "<group>"; };
 		06E126322975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		06E126402975E34700D43733 /* wnfs-ios */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "wnfs-ios"; path = ..; sourceTree = "<group>"; };
+		06E126412975E66800D43733 /* wnfs-swift-pkg */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "wnfs-swift-pkg"; path = "../wnfs-swift-pkg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,7 +132,7 @@
 		06E1263F2975E34700D43733 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				06E126402975E34700D43733 /* wnfs-ios */,
+				06E126412975E66800D43733 /* wnfs-swift-pkg */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
