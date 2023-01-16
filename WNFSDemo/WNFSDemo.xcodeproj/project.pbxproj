@@ -1,0 +1,592 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		06E126162975D17D00D43733 /* WNFSDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E126152975D17D00D43733 /* WNFSDemoApp.swift */; };
+		06E126182975D17D00D43733 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E126172975D17D00D43733 /* ContentView.swift */; };
+		06E1261A2975D18100D43733 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 06E126192975D18100D43733 /* Assets.xcassets */; };
+		06E1261D2975D18100D43733 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 06E1261C2975D18100D43733 /* Preview Assets.xcassets */; };
+		06E126272975D18200D43733 /* WNFSDemoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E126262975D18200D43733 /* WNFSDemoTests.swift */; };
+		06E126312975D18200D43733 /* WNFSDemoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E126302975D18200D43733 /* WNFSDemoUITests.swift */; };
+		06E126332975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E126322975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		06E126232975D18200D43733 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 06E1260A2975D17D00D43733 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 06E126112975D17D00D43733;
+			remoteInfo = WNFSDemo;
+		};
+		06E1262D2975D18200D43733 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 06E1260A2975D17D00D43733 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 06E126112975D17D00D43733;
+			remoteInfo = WNFSDemo;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		06E126122975D17D00D43733 /* WNFSDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WNFSDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		06E126152975D17D00D43733 /* WNFSDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoApp.swift; sourceTree = "<group>"; };
+		06E126172975D17D00D43733 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		06E126192975D18100D43733 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		06E1261C2975D18100D43733 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		06E126222975D18100D43733 /* WNFSDemoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WNFSDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		06E126262975D18200D43733 /* WNFSDemoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoTests.swift; sourceTree = "<group>"; };
+		06E1262C2975D18200D43733 /* WNFSDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WNFSDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		06E126302975D18200D43733 /* WNFSDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoUITests.swift; sourceTree = "<group>"; };
+		06E126322975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WNFSDemoUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		06E126402975E34700D43733 /* wnfs-ios */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "wnfs-ios"; path = ..; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		06E1260F2975D17D00D43733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E1261F2975D18100D43733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E126292975D18200D43733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		06E126092975D17D00D43733 = {
+			isa = PBXGroup;
+			children = (
+				06E1263F2975E34700D43733 /* Packages */,
+				06E126142975D17D00D43733 /* WNFSDemo */,
+				06E126252975D18200D43733 /* WNFSDemoTests */,
+				06E1262F2975D18200D43733 /* WNFSDemoUITests */,
+				06E126132975D17D00D43733 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		06E126132975D17D00D43733 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				06E126122975D17D00D43733 /* WNFSDemo.app */,
+				06E126222975D18100D43733 /* WNFSDemoTests.xctest */,
+				06E1262C2975D18200D43733 /* WNFSDemoUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		06E126142975D17D00D43733 /* WNFSDemo */ = {
+			isa = PBXGroup;
+			children = (
+				06E126152975D17D00D43733 /* WNFSDemoApp.swift */,
+				06E126172975D17D00D43733 /* ContentView.swift */,
+				06E126192975D18100D43733 /* Assets.xcassets */,
+				06E1261B2975D18100D43733 /* Preview Content */,
+			);
+			path = WNFSDemo;
+			sourceTree = "<group>";
+		};
+		06E1261B2975D18100D43733 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				06E1261C2975D18100D43733 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		06E126252975D18200D43733 /* WNFSDemoTests */ = {
+			isa = PBXGroup;
+			children = (
+				06E126262975D18200D43733 /* WNFSDemoTests.swift */,
+			);
+			path = WNFSDemoTests;
+			sourceTree = "<group>";
+		};
+		06E1262F2975D18200D43733 /* WNFSDemoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				06E126302975D18200D43733 /* WNFSDemoUITests.swift */,
+				06E126322975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift */,
+			);
+			path = WNFSDemoUITests;
+			sourceTree = "<group>";
+		};
+		06E1263F2975E34700D43733 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				06E126402975E34700D43733 /* wnfs-ios */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		06E126112975D17D00D43733 /* WNFSDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06E126362975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemo" */;
+			buildPhases = (
+				06E1260E2975D17D00D43733 /* Sources */,
+				06E1260F2975D17D00D43733 /* Frameworks */,
+				06E126102975D17D00D43733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WNFSDemo;
+			productName = WNFSDemo;
+			productReference = 06E126122975D17D00D43733 /* WNFSDemo.app */;
+			productType = "com.apple.product-type.application";
+		};
+		06E126212975D18100D43733 /* WNFSDemoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06E126392975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemoTests" */;
+			buildPhases = (
+				06E1261E2975D18100D43733 /* Sources */,
+				06E1261F2975D18100D43733 /* Frameworks */,
+				06E126202975D18100D43733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				06E126242975D18200D43733 /* PBXTargetDependency */,
+			);
+			name = WNFSDemoTests;
+			productName = WNFSDemoTests;
+			productReference = 06E126222975D18100D43733 /* WNFSDemoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		06E1262B2975D18200D43733 /* WNFSDemoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06E1263C2975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemoUITests" */;
+			buildPhases = (
+				06E126282975D18200D43733 /* Sources */,
+				06E126292975D18200D43733 /* Frameworks */,
+				06E1262A2975D18200D43733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				06E1262E2975D18200D43733 /* PBXTargetDependency */,
+			);
+			name = WNFSDemoUITests;
+			productName = WNFSDemoUITests;
+			productReference = 06E1262C2975D18200D43733 /* WNFSDemoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		06E1260A2975D17D00D43733 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1420;
+				LastUpgradeCheck = 1420;
+				TargetAttributes = {
+					06E126112975D17D00D43733 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+					06E126212975D18100D43733 = {
+						CreatedOnToolsVersion = 14.2;
+						TestTargetID = 06E126112975D17D00D43733;
+					};
+					06E1262B2975D18200D43733 = {
+						CreatedOnToolsVersion = 14.2;
+						TestTargetID = 06E126112975D17D00D43733;
+					};
+				};
+			};
+			buildConfigurationList = 06E1260D2975D17D00D43733 /* Build configuration list for PBXProject "WNFSDemo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 06E126092975D17D00D43733;
+			productRefGroup = 06E126132975D17D00D43733 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				06E126112975D17D00D43733 /* WNFSDemo */,
+				06E126212975D18100D43733 /* WNFSDemoTests */,
+				06E1262B2975D18200D43733 /* WNFSDemoUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		06E126102975D17D00D43733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				06E1261D2975D18100D43733 /* Preview Assets.xcassets in Resources */,
+				06E1261A2975D18100D43733 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E126202975D18100D43733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E1262A2975D18200D43733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		06E1260E2975D17D00D43733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				06E126182975D17D00D43733 /* ContentView.swift in Sources */,
+				06E126162975D17D00D43733 /* WNFSDemoApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E1261E2975D18100D43733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				06E126272975D18200D43733 /* WNFSDemoTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		06E126282975D18200D43733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				06E126332975D18200D43733 /* WNFSDemoUITestsLaunchTests.swift in Sources */,
+				06E126312975D18200D43733 /* WNFSDemoUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		06E126242975D18200D43733 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 06E126112975D17D00D43733 /* WNFSDemo */;
+			targetProxy = 06E126232975D18200D43733 /* PBXContainerItemProxy */;
+		};
+		06E1262E2975D18200D43733 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 06E126112975D17D00D43733 /* WNFSDemo */;
+			targetProxy = 06E1262D2975D18200D43733 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		06E126342975D18200D43733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		06E126352975D18200D43733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		06E126372975D18200D43733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"WNFSDemo/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		06E126382975D18200D43733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"WNFSDemo/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		06E1263A2975D18200D43733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WNFSDemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WNFSDemo";
+			};
+			name = Debug;
+		};
+		06E1263B2975D18200D43733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WNFSDemo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WNFSDemo";
+			};
+			name = Release;
+		};
+		06E1263D2975D18200D43733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WNFSDemo;
+			};
+			name = Debug;
+		};
+		06E1263E2975D18200D43733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = land.fx.WNFSDemoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WNFSDemo;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		06E1260D2975D17D00D43733 /* Build configuration list for PBXProject "WNFSDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06E126342975D18200D43733 /* Debug */,
+				06E126352975D18200D43733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		06E126362975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06E126372975D18200D43733 /* Debug */,
+				06E126382975D18200D43733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		06E126392975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06E1263A2975D18200D43733 /* Debug */,
+				06E1263B2975D18200D43733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		06E1263C2975D18200D43733 /* Build configuration list for PBXNativeTarget "WNFSDemoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06E1263D2975D18200D43733 /* Debug */,
+				06E1263E2975D18200D43733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 06E1260A2975D17D00D43733 /* Project object */;
+}
