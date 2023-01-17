@@ -1,10 +1,10 @@
-all: gen-c-header add-rust-targets x86_64-apple-ios aarch64-apple-ios lipo-ios xcode-build bundle
+all: gen-c-header add-rust-targets x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim lipo-ios xcode-build bundle
 
 gen-c-header: 
 	cbindgen --lang C -o include/wnfs.h .
 
 add-rust-targets:
-	rustup target add x86_64-apple-ios aarch64-apple-ios
+	rustup target add x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim
 
 aarch64-apple-ios:
 	cargo build --release --target aarch64-apple-ios
@@ -12,9 +12,13 @@ aarch64-apple-ios:
 x86_64-apple-ios:
 	cargo build --release --target x86_64-apple-ios
 
+aarch64-apple-ios-sim:
+	cargo build --release --target aarch64-apple-ios-sim
+
 lipo-ios:
 	lipo -create \
 	target/x86_64-apple-ios/release/libwnfs.a \
+	target/aarch64-apple-ios-sim/release/libwnfs.a \
 	-output libwnfs_iossimulator.a
 
 xcode-build:
