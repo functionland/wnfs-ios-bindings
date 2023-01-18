@@ -1,5 +1,5 @@
-# wnfs-ios
-This is home to the wnfs binding library for the iOS mobile devices.
+# Wnfs iOS bindings
+This is home to the wnfs bindings library for the iOS mobile devices.
 ## Requirements
 - An OSX environment
 - Latest version of Golang and Gomobile installed
@@ -7,7 +7,7 @@ This is home to the wnfs binding library for the iOS mobile devices.
 ## How to build
 Run `make`, this will create a `Wnfs.xcframework` directory in the project root file.
 
-## Distributiion of the xcframework
+## Distribution of the xcframework
 Please follow this doc from the apple documentations: https://developer.apple.com/documentation/xcode/distributing-binary-frameworks-as-swift-packages
 
 ## Testing the swift package
