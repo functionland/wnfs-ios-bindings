@@ -21,8 +21,7 @@ let package = Package(
                 dependencies: ["Wnfs"]),
             .binaryTarget(
                 name: "Wnfs",
-                url: "https://github.com/functionland/wnfs-ios/raw/main/bundle.zip",
-                checksum: "390f4df8af3ff9567c051a3891c1a430331e5221d89ae9b0c0185c93a9243519"),
+                path: "../Wnfs.xcframework"),
             .testTarget(
                 name: "WnfsSwiftTests",
                 dependencies: ["WnfsSwift"]),

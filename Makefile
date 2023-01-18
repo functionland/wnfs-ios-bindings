@@ -38,6 +38,8 @@ xcode-build:
 	-headers ./include/ \
 	-output Wnfs.xcframework
 
+gomobile-install:
+	go install golang.org/x/mobile/cmd/gomobile@latest
 
 # bundle:
 # 	zip -r bundle.zip Wnfs.xcframework && openssl dgst -sha256 bundle.zip
