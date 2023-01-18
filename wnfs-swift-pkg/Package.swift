@@ -11,6 +11,9 @@ let package = Package(
             .library(
                 name: "WnfsSwift",
                 targets: ["WnfsSwift"]),
+            .library(
+                name: "Wnfs",
+                targets: ["Wnfs"]),
         ],
         targets: [
             .target(
