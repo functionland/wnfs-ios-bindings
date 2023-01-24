@@ -27,6 +27,7 @@ rand = "0.8.5"
 libipld = { version = "0.15", features = ["dag-cbor", "derive", "serde-codec"] }
 kv = "0.24.0"
 sha256 = "1.1.1"
+once_cell = "1.17.0"
 # swift-rs = "0.3.0"
 
 # [build-dependencies]
