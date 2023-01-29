@@ -2,6 +2,7 @@ pub mod store;
 pub mod ios {
     extern crate libc;
     use anyhow::Result;
+    use libc::c_void;
 
     use ::core::mem::MaybeUninit as MU;
     use libipld::Cid;
@@ -25,22 +26,38 @@ pub mod ios {
     }
 
     #[repr(C)]
+    #[derive(Clone)]
     pub struct BlockStoreInterface {
-        pub put_fn: extern fn(bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, i64) -> *const u8,
-        pub get_fn: extern fn(cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8,
+        pub putdata: *mut c_void,
+        pub getdata: *mut c_void,
+        pub put_fn: extern "C" fn(putdata: *mut c_void, bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8,
+        pub get_fn: extern "C" fn(getdata: *mut c_void, cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8,
     }
 
-    #[no_mangle]
-    pub unsafe extern "C" fn new_block_store_interface(put_fn: extern fn(*const u8, *const libc::size_t, *mut libc::size_t, i64) -> *const u8, get_fn: extern fn(*const u8, *const libc::size_t, *mut libc::size_t) -> *const u8) -> *mut BlockStoreInterface{
-        Box::into_raw(Box::new(BlockStoreInterface { 
-            put_fn: put_fn, 
-            get_fn: get_fn 
-            }
-        ))
+    unsafe impl Send for BlockStoreInterface {}
+
+    impl BlockStoreInterface {
+        pub fn put(self,  bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8 {
+            let result =  (self.put_fn)(self.putdata,  bytes, bytes_size, result_size, codec);
+            std::mem::forget(self);
+            result
+        }
+        pub fn get(self, cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8 {
+            let result = (self.get_fn)(self.getdata, cid, cid_size, result_size);
+            std::mem::forget(self);
+            result
+        }
     }
 
+    // TODO: fixme
+    // impl Drop for BlockStoreInterface {
+    //     fn drop(&mut self) {
+    //         panic!("BlockStoreInterface must have explicit put or get call")
+    //     }
+    // }
+
     #[no_mangle]
-    pub unsafe extern "C" fn create_private_forest_native(block_store_interface: *const BlockStoreInterface) -> *mut c_char {
+    pub unsafe extern "C" fn create_private_forest_native(block_store_interface: BlockStoreInterface) -> *mut c_char {
         trace!("**********************createPrivateForest started**************");
         let store = BridgedStore::new(
             block_store_interface
@@ -60,7 +77,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn get_private_ref_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
@@ -89,7 +106,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn create_root_dir_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         wnfs_key_arr_size: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
@@ -98,7 +115,7 @@ pub mod ios {
         unsafe {
             let store = BridgedStore::new(
                 block_store_interface
-                
+
             );
             let block_store = FFIFriendlyBlockStore::new(Box::new(store));
             let helper = &mut PrivateDirectoryHelper::new(block_store);
@@ -130,7 +147,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn write_file_from_path_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -191,7 +208,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn read_filestream_to_path_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -248,7 +265,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn read_file_to_path_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -305,7 +322,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn write_file_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -349,7 +366,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn read_file_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -385,7 +402,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mkdir_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -435,7 +452,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn mv_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
@@ -478,7 +495,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn cp_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         source_path_segments: *const c_char,
@@ -521,7 +538,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn rm_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -557,7 +574,7 @@ pub mod ios {
 
     #[no_mangle]
     pub extern "C" fn ls_native(
-        block_store_interface: *const BlockStoreInterface,
+        block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
@@ -767,6 +784,7 @@ pub mod ios {
 #[cfg(test)]
 mod ios_tests {
     use crate::ios::*;
+    use libc::c_void;
     use once_cell::sync::Lazy;
     use sha256::digest;
     use wnfsutils::{kvstore::KVBlockStore, blockstore::FFIStore};
@@ -819,7 +837,8 @@ mod ios_tests {
     
     static store: Lazy<KVBlockStore> = Lazy::new(|| KVBlockStore::new(String::from("./tmp/test_db"), IpldCodec::DagCbor));
     
-    extern fn get(_cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8{
+
+    extern "C" fn getdata(_cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8{
         let mut capacity: usize = 0;
         let mut size: usize = 0;
         unsafe{
@@ -829,7 +848,7 @@ mod ios_tests {
         }
     }
 
-    extern fn put(_bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8{
+    extern "C" fn putdata(_bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8{
         let mut capacity: usize = 0;
         let mut size: usize = 0;
         unsafe{
@@ -839,20 +858,37 @@ mod ios_tests {
         }
     }
 
+    extern fn get(fngetdata: *mut c_void, _cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8{
+            getdata(_cid, cid_size, result_size)
+    }
+
+    extern fn put(fnputdata: *mut c_void, _bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8{
+            putdata(_bytes, bytes_size, result_size, codec)
+    }
+
+    fn get_block_store_interface() -> BlockStoreInterface{
+        let result = BlockStoreInterface{
+            putdata: &mut putdata  as *mut _ as *mut c_void,
+            getdata: &mut getdata  as *mut _ as *mut c_void,
+            put_fn: put,
+            get_fn: get,
+        };
+        std::mem::forget(&result);
+        result
+    }
+
     #[test]
     fn test_overall() {
         unsafe {
-            
-            let block_store_interface = new_block_store_interface(put, get);
             let wnfs_key_string = digest("test");
             let wnfs_key = CString::new(wnfs_key_string.to_owned())
                 .unwrap()
                 .into_raw()
                 .cast_const();
-            let forest_cid = create_private_forest_native(block_store_interface);
+            let forest_cid = create_private_forest_native(get_block_store_interface());
 
             let mut cfg = create_root_dir_native(
-                block_store_interface,
+                get_block_store_interface(),
                 wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
                 wnfs_key as *const u8,
                 forest_cid,
@@ -863,7 +899,7 @@ mod ios_tests {
             let mut len: usize = 0;
             let mut capacity: usize = 0;
             let filenames_initial = ls_native(
-                block_store_interface
+                get_block_store_interface()
                 ,string_to_cstring("bafyreieqp253whdfdrky7hxpqezfwbkjhjdbxcq4mcbp6bqf4jdbncbx4y".into())
                 ,string_to_cstring("{\"saturated_name_hash\":[229,31,96,28,24,238,207,22,36,150,191,37,235,68,191,144,219,250,5,97,85,208,156,134,137,74,25,209,6,66,250,127],\"content_key\":[172,199,245,151,207,21,26,76,52,109,93,57,118,232,9,230,149,46,37,137,174,42,119,29,102,175,25,149,213,204,45,15],\"revision_key\":[17,5,78,59,8,135,144,240,41,248,135,168,222,186,158,240,100,10,129,4,180,55,126,115,146,239,22,177,207,118,169,51]}".into())
                 ,string_to_cstring("root/".into()),
@@ -880,7 +916,7 @@ mod ios_tests {
             // Read file
             {
                 cfg = write_file_from_path_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -891,7 +927,7 @@ mod ios_tests {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
                 let content_from_path = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -908,7 +944,7 @@ mod ios_tests {
             // Read content from path to path
             {
                 let content_from_path_topath = read_file_to_path_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -927,7 +963,7 @@ mod ios_tests {
             // Read content from file stream to path
             {
                 let content_stream_from_path_topath = read_filestream_to_path_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -948,7 +984,7 @@ mod ios_tests {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
                 cfg = cp_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -956,7 +992,7 @@ mod ios_tests {
                 );
                 (cid, private_ref) = test_cfg(cfg);
                 let content_cp = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathcp.txt".into()),
@@ -974,7 +1010,7 @@ mod ios_tests {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
                 cfg = mv_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompath.txt".into()),
@@ -982,7 +1018,7 @@ mod ios_tests {
                 );
                 (cid, private_ref) = test_cfg(cfg);
                 let content_mv = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathmv.txt".into()),
@@ -1000,14 +1036,14 @@ mod ios_tests {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
                 cfg = rm_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathmv.txt".into()),
                 );
                 (cid, private_ref) = test_cfg(cfg);
                 let content_rm1 = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathmv.txt".into()),
@@ -1025,14 +1061,14 @@ mod ios_tests {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
                 cfg = rm_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathcp.txt".into()),
                 );
                 (cid, private_ref) = test_cfg(cfg);
                 let content_rm2 = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/testfrompathcp.txt".into()),
@@ -1059,7 +1095,7 @@ mod ios_tests {
                     &mut capacity,
                 );
                 cfg = write_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/test.txt".into()),
@@ -1069,7 +1105,7 @@ mod ios_tests {
                 (cid, private_ref) = test_cfg(cfg);
 
                 cfg = mkdir_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/test1".into()),
@@ -1077,7 +1113,7 @@ mod ios_tests {
                 (cid, private_ref) = test_cfg(cfg);
 
                 let content_ls = ls_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root".into()),
@@ -1090,7 +1126,7 @@ mod ios_tests {
                 println!("ls. fileNames={}", file_names);
 
                 let content_test = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/test.txt".into()),
@@ -1115,7 +1151,7 @@ mod ios_tests {
                     wnfs_key_string
                 );
                 let private_ref_reload = get_private_ref_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     wnfs_key_string.to_owned().as_bytes().len() as libc::size_t,
                     wnfs_key as *const u8,
                     cid,
@@ -1134,7 +1170,7 @@ mod ios_tests {
                 );
 
                 let content_reloaded = read_file_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/test.txt".into()),
@@ -1151,7 +1187,7 @@ mod ios_tests {
             // Read content from path to path (reloaded)
             {
                 let content_from_path_topath_reloaded = read_file_to_path_native(
-                    block_store_interface,
+                    get_block_store_interface(),
                     cid,
                     private_ref,
                     string_to_cstring("root/test.txt".into()),

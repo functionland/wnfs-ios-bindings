@@ -15,14 +15,17 @@ let package = Package(
                 name: "Wnfs",
                 targets: ["Wnfs"]),
         ],
+        dependencies: [
+            // Dependencies declare other packages that this package depends on.
+            .package(url: "https://github.com/swift-libp2p/swift-cid.git", .upToNextMajor(from: "0.0.1")),
+        ],
         targets: [
             .target(
                 name: "WnfsSwift",
-                dependencies: ["Wnfs"]),
+                dependencies: ["Wnfs", .product(name: "CID", package: "swift-cid"),]),
             .binaryTarget(
                 name: "Wnfs",
-                url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
-                checksum: "85e83f29d6b21c65d42d5fe08e82bbe31f98e69a41eaaa7502154ef13bc2c02e"),
+                path: "../build/Wnfs.xcframework"),
             .testTarget(
                 name: "WnfsSwiftTests",
                 dependencies: ["WnfsSwift"]),

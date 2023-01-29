@@ -7,14 +7,16 @@ use crate::ios::cbytes_free;
 use crate::ios::vec_to_c_array;
 
 pub struct BridgedStore {
-    block_store_interface: *const BlockStoreInterface
+    block_store_interface: BlockStoreInterface
 }
 
 impl<'a> BridgedStore {
-    pub fn new(block_store_interface: *const BlockStoreInterface) -> BridgedStore {
+    pub fn new(block_store_interface: BlockStoreInterface) -> BridgedStore {
+        let block_store_interface = block_store_interface;
         return BridgedStore{
             block_store_interface: block_store_interface,
         }
+    
     }
 }
 
@@ -26,8 +28,12 @@ impl<'a> FFIStore<'a> for BridgedStore {
             let mut capacity: usize = 0;
             let mut size: usize = 0;
             let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut len, &mut capacity);
-            let get_fn = (*self.block_store_interface).get_fn;
-            let result = get_fn(cid, &mut len, &mut size);
+            let result = {
+                let cid_size: *const libc::size_t = &mut len;
+                let result_size: *mut libc::size_t = &mut size;
+                let result = self.block_store_interface.to_owned().get(cid, cid_size, result_size);
+                result
+            };
             cbytes_free(cid, len as i32, capacity as i32);
             
             let out = c_array_to_vec(size, result);
@@ -42,8 +48,12 @@ impl<'a> FFIStore<'a> for BridgedStore {
             let mut capacity: usize = 0;
             let mut size: usize = 0;
             let bytes = vec_to_c_array(_bytes.to_owned().as_mut(), &mut len, &mut capacity);
-            let put_fn = (*self.block_store_interface).put_fn;
-            let result = put_fn(bytes, &mut len, &mut size, _codec);
+            let result = {
+                let bytes_size: *const libc::size_t = &mut len;
+                let result_size: *mut libc::size_t = &mut size;
+                let result =  self.block_store_interface.to_owned().put(bytes, bytes_size, result_size, _codec);
+                result
+            };
             cbytes_free(bytes, len as i32, capacity as i32);            
             let out = c_array_to_vec(size, result);
             Ok(out)
