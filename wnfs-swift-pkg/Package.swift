@@ -26,6 +26,9 @@ let package = Package(
             .binaryTarget(
                 name: "Wnfs",
                 path: "../build/Wnfs.xcframework"),
+                // url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
+                // checksum: "85e83f29d6b21c65d42d5fe08e82bbe31f98e69a41eaaa7502154ef13bc2c02e"),
+           
             .testTarget(
                 name: "WnfsSwiftTests",
                 dependencies: ["WnfsSwift"]),

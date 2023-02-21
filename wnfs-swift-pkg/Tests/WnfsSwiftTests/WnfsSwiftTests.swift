@@ -7,31 +7,53 @@ import func XCTest.XCTAssertEqual
 import Foundation
 import XCTest
 import CryptoKit
+import CID
+import Multihash
+import Multicodec
 @testable import WnfsSwift
 
 class MockSession {
 
     static let sharedInstance = MockSession()
 
-    var myData = Dictionary<String,AnyObject>()
+    var myData = Dictionary<Data,Data>()
 }
 
-public func mockFulaGet(_cid: UnsafePointer<UInt8>?, cid_size: UnsafePointer<Int>?, result_size: UnsafeMutablePointer<Int>?) -> UnsafePointer<UInt8>? {
-    let myData = MockSession.sharedInstance.myData as Dictionary
-    let hospitalDict = myData["hospital"]
+public func mockFulaGet(_ cid: Data?) -> Data? {
 
-
-    if let name = hospitalDict?["name"] as? String {
-        print(name)
+    if let data = MockSession.sharedInstance.myData[cid!] {
+        return data
     }
+    return nil
 }
 
-public func mockFulaPut(_bytes: UnsafePointer<UInt8>?, bytes_size: UnsafePointer<Int>?, result_size: UnsafeMutablePointer<Int>?, codec: Int64) -> UnsafePointer<UInt8>? {
-    var dict = Dictionary<String,AnyObject>()
-    dict["pid"] = "123"
-    dict["hospital"] = ["id":"234", "name":"newHorizon", "type":"nursing home"]
+public func mockFulaPut(_ data: Data?, _ _codec: Int64) -> Data? {
+    let codec: Codecs
+    do{
+        codec = try Codecs(_codec)
+    } catch let error{
+        print(error.localizedDescription)
+        return nil
+    }
+    let hash: Multihash
+    let cid: CID
+    do{
+        hash = try Multihash(raw: data!, hashedWith: .sha2_256)
+    } catch let error{
+        print(error.localizedDescription)
+        return nil
+    }
+    do{
+        cid = try CID(version: .v1, codec: codec, multihash: hash)
+    } catch let error{
+        print(error.localizedDescription)
+        return nil
+    }
 
-    MockSession.sharedInstance.myData = dict
+    MockSession.sharedInstance.myData[cid.rawData] = data!
+    print(cid.toBaseEncodedString)
+    print(cid.rawData.toHexString())
+    return Data(cid.rawData)
 }
 
 final class WnfsSwiftTest: XCTestCase {
@@ -44,8 +66,17 @@ final class WnfsSwiftTest: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
+    func testCID() throws {
+        let mh = try Multihash(raw: "abc", hashedWith: .sha2_256)
+        let cid = try CID(version: .v1, codec: .dag_cbor, multihash: mh)
+
+        assert(cid.toBaseEncodedString == "bafyreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu")
+        let cid_recreated = try CID(cid.rawData.bytes)
+        assert(cid_recreated.toBaseEncodedString == cid.toBaseEncodedString)
+    }
+    
     func testOverall() throws {
-        let wnfsWrapper = WnfsWrapper(dbPath: NSTemporaryDirectory())
+        let wnfsWrapper = WnfsWrapper(putFn: mockFulaPut, getFn: mockFulaGet)
         let cid = wnfsWrapper.CreatePrivateForest()
         assert(cid != nil)
         

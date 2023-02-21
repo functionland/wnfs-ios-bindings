@@ -26,26 +26,41 @@ pub mod ios {
     }
 
     #[repr(C)]
+    #[derive(Clone, Debug)]
+    pub struct SwiftData {
+        pub ptr: *const u8,
+        pub count: libc::size_t,
+    }
+
+    #[repr(C)]
     #[derive(Clone)]
     pub struct BlockStoreInterface {
-        pub putdata: *mut c_void,
-        pub getdata: *mut c_void,
-        pub put_fn: extern "C" fn(putdata: *mut c_void, bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8,
-        pub get_fn: extern "C" fn(getdata: *mut c_void, cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8,
+        pub userdata: *mut c_void,
+        pub put_fn: extern "C" fn(userdata: *mut c_void, bytes: *const u8, bytes_len: *const libc::size_t, codec: i64) -> *const SwiftData,
+        pub get_fn: extern "C" fn(userdata: *mut c_void, cid: *const u8, cid_len: *const libc::size_t) -> * const SwiftData,
+        pub dealloc: extern "C" fn(swiftdata: *const SwiftData),
     }
 
     unsafe impl Send for BlockStoreInterface {}
 
     impl BlockStoreInterface {
-        pub fn put(self,  bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8 {
-            let result =  (self.put_fn)(self.putdata,  bytes, bytes_size, result_size, codec);
+        pub fn put(self,  bytes: *const u8, bytes_len: *const libc::size_t, codec: i64) -> *const SwiftData {
+            let result = (self.put_fn)(self.userdata,  bytes, bytes_len, codec);
+            std::mem::forget(self); 
+            unsafe{
+                println!("before: count: {:?}, ref: {:?}, obj: {:?}", (*result).count, (*result).ptr, *result.to_owned());
+            }
+            result
+        }
+        pub fn get(self, cid: *const u8, cid_len: *const libc::size_t) -> *const SwiftData {
+            let result = (self.get_fn)(self.userdata, cid, cid_len);
             std::mem::forget(self);
             result
         }
-        pub fn get(self, cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8 {
-            let result = (self.get_fn)(self.getdata, cid, cid_size, result_size);
+
+        pub fn dealloc(self, data: *const SwiftData){
+            (self.dealloc)(data);
             std::mem::forget(self);
-            result
         }
     }
 
@@ -78,7 +93,7 @@ pub mod ios {
     #[no_mangle]
     pub extern "C" fn get_private_ref_native(
         block_store_interface: BlockStoreInterface,
-        wnfs_key_arr_size: libc::size_t,
+        wnfs_key_arr_len: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
     ) -> *mut c_char {
@@ -90,7 +105,7 @@ pub mod ios {
             let block_store = FFIFriendlyBlockStore::new(Box::new(store));
             let helper = &mut PrivateDirectoryHelper::new(block_store);
 
-            let wnfs_key: Vec<u8> = c_array_to_vec(wnfs_key_arr_size, wnfs_key_arr_pointer);
+            let wnfs_key: Vec<u8> = ffi_input_array_to_vec(wnfs_key_arr_len, wnfs_key_arr_pointer);
             let forest_cid = deserialize_cid(cid);
             let private_ref = helper.synced_get_private_ref(wnfs_key, forest_cid);
             trace!("**********************getPrivateRefNative finished**************");
@@ -107,7 +122,7 @@ pub mod ios {
     #[no_mangle]
     pub extern "C" fn create_root_dir_native(
         block_store_interface: BlockStoreInterface,
-        wnfs_key_arr_size: libc::size_t,
+        wnfs_key_arr_len: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
     ) -> *mut Config {
@@ -125,7 +140,7 @@ pub mod ios {
             let forest_res = helper.synced_load_forest(forest_cid);
             if forest_res.is_ok() {
                 let forest = forest_res.ok().unwrap();
-                let wnfs_key: Vec<u8> = c_array_to_vec(wnfs_key_arr_size, wnfs_key_arr_pointer);
+                let wnfs_key: Vec<u8> = ffi_input_array_to_vec(wnfs_key_arr_len, wnfs_key_arr_pointer);
                 let init_res = helper.synced_init(forest, wnfs_key);
                 if init_res.is_ok() {
                     let (cid, private_ref) = init_res.ok().unwrap();
@@ -326,7 +341,7 @@ pub mod ios {
         cid: *const c_char,
         private_ref: *const c_char,
         path_segments: *const c_char,
-        content_arr_size: libc::size_t,
+        content_arr_len: libc::size_t,
         content_arr_pointer: *const u8,
     ) -> *mut Config {
         trace!("**********************writeFileNative started**************");
@@ -346,7 +361,7 @@ pub mod ios {
                 .synced_get_root_dir(forest.to_owned(), private_ref)
                 .unwrap();
             let path_segments = prepare_path_segments(path_segments);
-            let content = c_array_to_vec(content_arr_size, content_arr_pointer);
+            let content = ffi_input_array_to_vec(content_arr_len, content_arr_pointer);
 
             //let (cid, private_ref) =
             let write_file_res =
@@ -642,6 +657,12 @@ pub mod ios {
         }
     }
 
+    #[no_mangle]
+    pub extern "C" fn alloc_bytes(size: *mut libc::size_t) -> *mut u8 {
+        let ptr = unsafe { ::libc::malloc(*size)};
+        ptr as *mut _
+    }
+
     pub fn serialize_config(cid: Cid, private_ref: PrivateRef) -> *mut Config {
         trace!("**********************serialize_config started**************");
         Box::into_raw(Box::new(Config {
@@ -733,8 +754,10 @@ pub mod ios {
         Ok(result)
     }
 
-    pub unsafe fn c_array_to_vec(size: libc::size_t, array_pointer: *const u8) -> Vec<u8> {
-        std::slice::from_raw_parts(array_pointer as *const u8, size as usize).to_vec()
+    pub unsafe fn ffi_input_array_to_vec(size: libc::size_t, array_pointer: *const u8) -> Vec<u8> {
+        let result = std::slice::from_raw_parts(array_pointer as *const u8, size as usize).to_vec();
+        std::mem::forget(&result);
+        result
     }
 
     pub unsafe fn vec_to_c_array(
@@ -789,12 +812,11 @@ mod ios_tests {
     use sha256::digest;
     use wnfsutils::{kvstore::KVBlockStore, blockstore::FFIStore};
     use std::{
-        default,
         ffi::{CStr, CString},
         fs,
-        os::raw::c_char,
+        os::raw::c_char, ptr, borrow::BorrowMut,
     };
-    use libipld::{cbor::DagCborCodec, codec::Encode, IpldCodec};
+    use libipld::{IpldCodec};
 
 
     fn string_to_cstring(str_in: String) -> *const c_char {
@@ -829,49 +851,70 @@ mod ios_tests {
                 vec_to_c_array(test_content.as_mut_vec(), &mut len, &mut capacity);
             println!("len: {}, cap: {}", len, capacity);
             let content =
-                String::from_utf8(c_array_to_vec(len as libc::size_t, content_from_path)).unwrap();
+                String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_from_path)).unwrap();
             assert_eq!(content, test_content.to_owned().to_string());
+        }
+    }
+
+    #[test]
+    fn test_allocate_bytes() {
+        unsafe {
+            let mut size: usize = 20;
+            let ptr = alloc_bytes(&mut size);
+            let my_vec = ffi_input_array_to_vec(size, ptr);
+            assert!(my_vec.len() == size);
+            println!("my_vec size: {}", size);
+
         }
     }
 
     
     static store: Lazy<KVBlockStore> = Lazy::new(|| KVBlockStore::new(String::from("./tmp/test_db"), IpldCodec::DagCbor));
     
-
-    extern "C" fn getdata(_cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8{
+    extern fn get(_userdata: *mut c_void, _cid: *const u8, cid_len: *const libc::size_t ) -> *const SwiftData {
         let mut capacity: usize = 0;
-        let mut size: usize = 0;
+        let mut len: usize = 0;
         unsafe{
-            let cid = c_array_to_vec(*cid_size ,_cid);
-            let result = &mut store.get_block(cid).unwrap();
-            vec_to_c_array(result, result_size, &mut capacity)
+            let cid = ffi_input_array_to_vec(*cid_len ,_cid);
+            let data = &mut store.get_block(cid).unwrap();
+            let tmp1 = vec_to_c_array(data,&mut len,&mut capacity);
+            let result =  Box::into_raw(Box::new(SwiftData{
+                ptr: tmp1,
+                count: len,
+            }));
+            std::mem::forget(&result);
+            result
         }
     }
 
-    extern "C" fn putdata(_bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8{
+    extern fn put(_userdata: *mut c_void, _bytes: *const u8, bytes_len: *const libc::size_t, codec: i64) -> *const SwiftData {
         let mut capacity: usize = 0;
-        let mut size: usize = 0;
+        let mut len: usize = 0;
         unsafe{
-            let bytes = c_array_to_vec(*bytes_size ,_bytes);
-            let result = &mut store.put_block(bytes, codec).unwrap();
-            vec_to_c_array(result, result_size, &mut capacity)
+            let bytes = ffi_input_array_to_vec(*bytes_len ,_bytes);
+            let data = &mut store.put_block(bytes, codec).unwrap();
+            let tmp1 = vec_to_c_array(data,&mut len,&mut capacity);
+            let result =  Box::into_raw(Box::new(SwiftData{
+                ptr: tmp1,
+                count: len,
+            }));
+            std::mem::forget(&result);
+            println!("before: count: {:?}, ref: {:?}, obj: {:?}", (*result).count, (*result).ptr, result.to_owned());
+            result
         }
     }
 
-    extern fn get(fngetdata: *mut c_void, _cid: *const u8, cid_size: *const libc::size_t , result_size: *mut libc::size_t) -> *const u8{
-            getdata(_cid, cid_size, result_size)
-    }
-
-    extern fn put(fnputdata: *mut c_void, _bytes: *const u8, bytes_size: *const libc::size_t, result_size: *mut libc::size_t, codec: i64) -> *const u8{
-            putdata(_bytes, bytes_size, result_size, codec)
+    extern fn dealloc(d: *const SwiftData){
+        
     }
 
     fn get_block_store_interface() -> BlockStoreInterface{
+        let userdata: *mut c_void = ptr::null_mut();
         let result = BlockStoreInterface{
-            putdata: &mut putdata  as *mut _ as *mut c_void,
-            getdata: &mut getdata  as *mut _ as *mut c_void,
+            userdata: userdata,
             put_fn: put,
             get_fn: get,
+            dealloc: dealloc,
         };
         std::mem::forget(&result);
         result
@@ -936,7 +979,7 @@ mod ios_tests {
                 );
 
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_from_path))
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_from_path))
                         .unwrap();
                 assert_eq!(content, test_content.to_owned().to_string());
                 println!("read_file_from_path. content={}", content);
@@ -1001,7 +1044,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_cp)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_cp)).unwrap();
                 println!("cp. content_cp={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -1027,7 +1070,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_mv)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_mv)).unwrap();
                 println!("mv. content_mv={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -1052,7 +1095,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_rm1)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_rm1)).unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -1077,7 +1120,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_rm2)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_rm2)).unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -1122,7 +1165,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let file_names =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_ls)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_ls)).unwrap();
                 println!("ls. fileNames={}", file_names);
 
                 let content_test = read_file_native(
@@ -1135,7 +1178,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_test)).unwrap();
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_test)).unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -1179,7 +1222,7 @@ mod ios_tests {
                 );
                 println!("len: {}, cap: {}", len, capacity);
                 let content =
-                    String::from_utf8(c_array_to_vec(len as libc::size_t, content_reloaded))
+                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_reloaded))
                         .unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());

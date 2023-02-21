@@ -4,14 +4,9 @@
 //
 //  Created by Homayoun on 1/18/23.
 //
-
 import Foundation
 import Wnfs
 import CryptoKit
-import CID
-import Multihash
-import Multicodec
-
 
 private class WrapClosure<G, P> {
     fileprivate let get_closure: G
@@ -22,37 +17,60 @@ private class WrapClosure<G, P> {
     }
 }
 
-func cPutFn(bytes: UnsafePointer<UInt8>?, bytes_size: UnsafePointer<Int>?, result_size: UnsafeMutablePointer<Int>?, codec: Int64) -> UnsafePointer<UInt8>?{
-    let bts = withUnsafePointer(to: &bytes[0]) {
-        $0.withMemoryRebound(to: UInt8.self, capacity: bytes_size?.pointee!) { $0 }
+func toData(ptr: UnsafePointer<UInt8>?, size: UnsafePointer<Int>?) -> Data? {
+    guard let count = size else {
+        return nil
     }
-//            let hash = try Multihash(raw: bts, hashedWith: .sha2_256)
-//            let cid = try CID(version: .v1, codec: .dag_cbor, multihash: hash)
-    let cid = putFn(bts, try Codecs(codec))
-    result_size?.pointee = cid.bytes.count
-    let result: UnsafePointer<UInt8>? = UnsafePointer(cid)
-    return nil
-}
-
-func cGetFn(cid: UnsafePointer<UInt8>?, cid_size: UnsafePointer<Int>?, result_size: UnsafeMutablePointer<Int>?) -> UnsafePointer<UInt8>? {
-//    let bts = withUnsafePointer(to: &cid[0]) {
-//        $0.withMemoryRebound(to: UInt8.self, capacity: cid_size?.pointee!) { $0 }
-//    }
-    let bts = Data(bytes: cid!, count: cid_size?.pointee!)
-//            let hash = try Multihash(raw: bts, hashedWith: .sha2_256)
-//            let cid = try CID(version: .v1, codec: .dag_cbor, multihash: hash)
-    let data = getFn(bts)
-    result_size?.pointee = data.bytes.count
-    let result: UnsafePointer<UInt8>? = UnsafePointer(data)
-    return nil
+    let buffer = UnsafeBufferPointer(start: ptr, count: count.pointee)
+    return Data(buffer: buffer)
 }
 
 public class WnfsWrapper {
-    var blockStoreInterface: UnsafeMutablePointer<BlockStoreInterface>?
-    var x: Int
-    init(putFn: @escaping ((_ data: Data, _ codec: Int64) -> Data), getFn: @escaping ((_ cid: Data) -> Data)) {
-        self.x = 5
-        self.blockStoreInterface = new_block_store_interface(cPutFn, cGetFn)
+    var blockStoreInterface: BlockStoreInterface
+    init(putFn: @escaping ((_ data: Data?, _ codec: Int64) -> Data?), getFn: @escaping ((_ cid: Data?) -> Data?)) {
+        // step 1
+        let wrappedClosure = WrapClosure(get_closure: getFn, put_closure: putFn)
+        let userdata = Unmanaged.passRetained(wrappedClosure).toOpaque()
+        
+        // step 2
+        let cPutFn: @convention(c) (UnsafeMutableRawPointer?, UnsafePointer<UInt8>?, UnsafePointer<Int>?, Int64) -> UnsafePointer<SwiftData>? = { (_ userdata: UnsafeMutableRawPointer?, _ bytes: UnsafePointer<UInt8>?, _ bytes_size: UnsafePointer<Int>?, _ codec: Int64) -> UnsafePointer<SwiftData>? in
+            let wrappedClosure: WrapClosure< (_ cid: Data?) -> Data? , (_ data: Data?, _ codec: Int64) -> Data?> = Unmanaged.fromOpaque(userdata!).takeUnretainedValue()
+            let bts = toData(ptr: bytes, size: bytes_size)
+            guard let cid = wrappedClosure.put_closure(bts, codec) else{
+                return nil
+            }
+            print(cid.map { String(format: "%02hhx", $0) }.joined())
+            var ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: cid.count)
+            cid.copyBytes(to: ptr, count: cid.count)
+            let swiftData = SwiftData(ptr: UnsafePointer<UInt8>(ptr), count: cid.count)
+            let _result = UnsafeMutablePointer<SwiftData>.allocate(capacity: 1)
+            _result.initialize(to: swiftData)
+            let result: UnsafePointer<SwiftData>? = UnsafePointer(_result)
+            return result
+        }
+        
+        // step 3
+        let cGetFn: @convention(c) (UnsafeMutableRawPointer?, UnsafePointer<UInt8>?, UnsafePointer<Int>?) -> UnsafePointer<SwiftData>? = { (_ userdata: UnsafeMutableRawPointer?, _ cid: UnsafePointer<UInt8>?, _ cid_size: UnsafePointer<Int>?) -> UnsafePointer<SwiftData>? in
+            let wrappedClosure: WrapClosure< (_ cid: Data?) -> Data? , (_ data: Data?, _ codec: Int64) -> Data?> = Unmanaged.fromOpaque(userdata!).takeUnretainedValue()
+            let bts = toData(ptr: cid, size: cid_size)
+            guard let data = wrappedClosure.get_closure(bts) else{
+                return nil
+            }
+
+            var ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count)
+            data.copyBytes(to: ptr, count: data.count)
+            let swiftData = SwiftData(ptr: UnsafePointer<UInt8>(ptr), count: data.count)
+            let _result = UnsafeMutablePointer<SwiftData>.allocate(capacity: 1)
+            _result.initialize(to: swiftData)
+            let result: UnsafePointer<SwiftData>? = UnsafePointer(_result)
+            return result
+        }
+        
+        let cDeallocFn: @convention(c) (UnsafePointer<SwiftData>?) -> Void = { (_ data: UnsafePointer<SwiftData>?) in
+            data?.deallocate()
+        }
+
+        self.blockStoreInterface = BlockStoreInterface(userdata: userdata, put_fn: cPutFn, get_fn: cGetFn, dealloc: cDeallocFn)
     }
     
     public func CreatePrivateForest() -> String? {
@@ -77,7 +95,7 @@ public class WnfsWrapper {
             wnfs_key_ptr = unsafeBytes.bindMemory(to: UInt8.self).baseAddress!
             wnfs_key_size = unsafeBytes.count
         }
-        let ptr = Wnfs.create_root_dir_native(self.blockStoreInterface, wnfs_key_size!, wnfs_key_ptr!, makeCString(from: cid))
+        let ptr = create_root_dir_native(self.blockStoreInterface, wnfs_key_size!, wnfs_key_ptr!, makeCString(from: cid))
         
         return self.unwrapConfigPtr(ptr: ptr)
     }
