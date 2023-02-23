@@ -77,11 +77,13 @@ final class WnfsSwiftTest: XCTestCase {
     
     func testOverall() throws {
         let wnfsWrapper = WnfsWrapper(putFn: mockFulaPut, getFn: mockFulaGet)
-        let cid = wnfsWrapper.CreatePrivateForest()
-        assert(cid != nil)
+        try wnfsWrapper.CreatePrivateForest(wnfsKey: "test")
+
         
-        let config =  wnfsWrapper.CreateRootDir(cid: cid!, wnfsKey: "test")
-        assert(config != nil)
+        try wnfsWrapper.WriteFile(remotePath: "root/file.txt", data: "hello, world!".data(using: .utf8)!)
+        assert(wnfsWrapper.wnfsConfig.getCid() != "")
+        assert(wnfsWrapper.wnfsConfig.getPrivateRef() != "")
+
     }
 
     func testPerformanceExample() throws {

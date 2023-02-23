@@ -665,10 +665,12 @@ pub mod ios {
 
     pub fn serialize_config(cid: Cid, private_ref: PrivateRef) -> *mut Config {
         trace!("**********************serialize_config started**************");
-        Box::into_raw(Box::new(Config {
+        let out = Box::into_raw(Box::new(Config {
             cid: serialize_cid(cid),
             private_ref: serialize_private_ref(private_ref),
-        }))
+        }));
+        std::mem::forget(out);
+        out
     }
 
     pub unsafe fn deserialize_cid(cid: *const c_char) -> Cid {
@@ -778,12 +780,15 @@ pub mod ios {
     }
 
     #[no_mangle]
-    pub extern "C" fn config_free(ptr: *mut Config) {
+    pub extern "C" fn config_free(ptr: *mut Config) { 
         if ptr.is_null() {
             return;
         }
         unsafe {
-            drop(Box::from_raw(ptr));
+            let c = Box::from_raw(ptr);
+            cstring_free(c.cid as *mut _);
+            cstring_free(c.private_ref as *mut _);
+            drop(c);
         }
     }
 
