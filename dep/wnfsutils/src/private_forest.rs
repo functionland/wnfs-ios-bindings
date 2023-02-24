@@ -446,7 +446,7 @@ impl<'a> PrivateDirectoryHelper<'a> {
 
     pub async fn mkdir(&mut self, forest: Rc<PrivateForest>, root_dir: Rc<PrivateDirectory>, path_segments: &[String]) -> Result<(Cid, PrivateRef), String> {
         let res = root_dir
-            .mkdir(path_segments, true, Utc::now(), forest, &mut self.store,&mut self.rng)
+            .mkdir(path_segments, true, Utc::now(), forest, &mut self.store, &mut self.rng)
             .await;
         if res.is_ok() {
             let PrivateOpResult { forest, root_dir, .. } = res .unwrap();

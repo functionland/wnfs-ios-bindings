@@ -1,9 +1,29 @@
+use std::cmp::min;
+use std::fmt::Display;
+use std::fmt::Error;
+use std::fmt::Formatter;
+
 use anyhow::Ok;
 use anyhow::Result;
 use wnfsutils::blockstore::FFIStore;
 use crate::ios::BlockStoreInterface;
 use crate::ios::cbytes_free;
 use crate::ios::vec_to_c_array;
+
+struct LongVec(Vec<u8>);
+impl Display for LongVec {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        let mut comma_separated = String::new();
+
+        for num in &self.0[0..min(self.0.len() - 1,50)] {
+            comma_separated.push_str(&num.to_string());
+            comma_separated.push_str(", ");
+        }
+
+        comma_separated.push_str(&self.0[self.0.len() - 1].to_string());
+        write!(f, "{}", comma_separated)
+    }
+}
 
 pub struct BridgedStore {
     block_store_interface: BlockStoreInterface
@@ -23,17 +43,14 @@ impl<'a> FFIStore<'a> for BridgedStore {
     /// Retrieves an array of bytes from the block store with given CID.
     fn get_block(&self, _cid: Vec<u8>) -> Result<Vec<u8>> {
         unsafe{
-            println!("get(cid): {:?}", _cid);
             let mut len: usize = 0;
             let mut capacity: usize = 0;
             let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut len, &mut capacity);
             let _data = self.block_store_interface.to_owned().get(cid, &mut len);
             cbytes_free(cid, len as i32, capacity as i32);
             let data = _data.as_ref().unwrap();
-            // let data = *_data.to_owned();
-            println!("ptr: {:?}, ref: {:?}, obj: {:?}", _data, data.ptr, data);
             let out = c_array_to_vec(data.ptr, data.count).clone();
-            println!("111");
+            println!("get: cid({:?}) -> data({})", _cid, LongVec(out.to_owned()));
             self.block_store_interface.to_owned().dealloc(_data.to_owned());
             Ok(out)
         }
@@ -48,10 +65,8 @@ impl<'a> FFIStore<'a> for BridgedStore {
             let _data = self.block_store_interface.to_owned().put(bytes, &mut len, _codec);
             cbytes_free(bytes, len as i32, capacity as i32);
             let data = _data.as_ref().unwrap();
-            // let data = *_data.to_owned();
-            println!("count: {:?}, ref: {:?}, obj: {:?}", data.count, data.ptr, data);
             let out = c_array_to_vec(data.ptr as *mut _, data.count).clone();
-            println!("111");
+            println!("put: data({}) -> cid({:?})", LongVec(_bytes), out);
             self.block_store_interface.to_owned().dealloc(_data.to_owned());
             Ok(out)
         }

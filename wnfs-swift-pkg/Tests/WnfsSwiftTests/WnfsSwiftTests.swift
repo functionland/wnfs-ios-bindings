@@ -77,19 +77,59 @@ final class WnfsSwiftTest: XCTestCase {
     
     func testOverall() throws {
         let wnfsWrapper = WnfsWrapper(putFn: mockFulaPut, getFn: mockFulaGet)
-        try wnfsWrapper.CreatePrivateForest(wnfsKey: "test")
-
+        var wnfsConfig = try wnfsWrapper.CreatePrivateForest(wnfsKey: "test")
         
-        try wnfsWrapper.WriteFile(remotePath: "root/file.txt", data: "hello, world!".data(using: .utf8)!)
-        assert(wnfsWrapper.wnfsConfig.getCid() != "")
-        assert(wnfsWrapper.wnfsConfig.getPrivateRef() != "")
+        let data = "hello, world!".data(using: .utf8)!
+        wnfsConfig = try wnfsWrapper.WriteFile(wnfsConfig: wnfsConfig, remotePath: "/root/file.txt", data: data)
+        assert(wnfsConfig.getCid() != "")
+        assert(wnfsConfig.getPrivateRef() != "")
+        print("cid: " + wnfsConfig.getCid())
+        print("private ref: " + wnfsConfig.getPrivateRef())
+        
+        let content = try wnfsWrapper.ReadFile(wnfsConfig: wnfsConfig, remotePath: "/root/file.txt")
+        assert(content != nil)
+        let str = String(decoding: content!, as: UTF8.self)
+        assert(str == "hello, world!")
+        
+        let file = "file.txt" //this is the file. we will write to and read from it
+        let text = "hello, world!" //just a text
+        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let fileURL = dir.appendingPathComponent(file)
+            //writing
+            do {
+                try text.write(to: fileURL, atomically: false, encoding: .utf8)
+            }
+            catch {/* error handling here */}
+            wnfsConfig = try wnfsWrapper.WriteFileFromPath(wnfsConfig: wnfsConfig, remotePath: "/root/filefrompath.txt", fileUrl: fileURL)
+            let content = try wnfsWrapper.ReadFile(wnfsConfig: wnfsConfig, remotePath: "/root/filefrompath.txt")
+            assert(content != nil)
+            let str = String(decoding: content!, as: UTF8.self)
+            assert(str == "hello, world!")
+        }
+        
+        wnfsConfig = try wnfsWrapper.MkDir(wnfsConfig: wnfsConfig, remotePath: "/root/dir1/")
+        wnfsConfig = try wnfsWrapper.Cp(wnfsConfig: wnfsConfig, remotePathFrom: "/root/file.txt", remotePathTo: "/root/dir1/file.txt")
+        let lsResult = try wnfsWrapper.Ls(wnfsConfig: wnfsConfig, remotePath: "/root/dir1")
+        let lsResultStr = String(decoding: lsResult!, as: UTF8.self)
+        assert(lsResultStr.hasPrefix("file.txt"))
+        
+        wnfsConfig = try wnfsWrapper.Mv(wnfsConfig: wnfsConfig, remotePathFrom: "/root/file.txt", remotePathTo: "/root/file1.txt")
+        let content2 = try wnfsWrapper.ReadFile(wnfsConfig: wnfsConfig, remotePath: "/root/file.txt")
+        assert(content2 != nil)
+        let str2 = String(decoding: content2!, as: UTF8.self)
+        assert(str2 == "")
 
+        wnfsConfig = try wnfsWrapper.Rm(wnfsConfig: wnfsConfig, remotePath: "/root/dir1")
+        let content3 = try wnfsWrapper.ReadFile(wnfsConfig: wnfsConfig, remotePath: "/root/dir1/file.txt")
+        assert(content3 != nil)
+        let str3 = String(decoding: content3!, as: UTF8.self)
+        assert(str3 == "")
     }
 
     func testPerformanceExample() throws {
         // This is an example of a performance test case.
         self.measure {
-            // Put the code you want to measure the time of here.
+            // Put the code you want to measure the time of here.+9-
         }
     }
 }

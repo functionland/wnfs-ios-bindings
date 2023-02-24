@@ -53,7 +53,6 @@ enum MyError: Error {
 }
 public class WnfsWrapper {
     var blockStoreInterface: BlockStoreInterface
-    var wnfsConfig: WnfsConfig
     init(putFn: @escaping ((_ data: Data?, _ codec: Int64) -> Data?), getFn: @escaping ((_ cid: Data?) -> Data?)) {
         // step 1
         let wrappedClosure = WrapClosure(get_closure: getFn, put_closure: putFn)
@@ -66,7 +65,6 @@ public class WnfsWrapper {
             guard let cid = wrappedClosure.put_closure(bts, codec) else{
                 return nil
             }
-            print(cid.map { String(format: "%02hhx", $0) }.joined())
             let ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: cid.count)
             cid.copyBytes(to: ptr, count: cid.count)
             let swiftData = SwiftData(ptr: UnsafePointer<UInt8>(ptr), count: cid.count)
@@ -98,24 +96,21 @@ public class WnfsWrapper {
         }
 
         self.blockStoreInterface = BlockStoreInterface(userdata: userdata, put_fn: cPutFn, get_fn: cGetFn, dealloc: cDeallocFn)
-        self.wnfsConfig = WnfsConfig(cid: "", privateRef: "")
     }
     
-    public func CreatePrivateForest(wnfsKey: String) throws {
+    public func CreatePrivateForest(wnfsKey: String) throws -> WnfsConfig {
         let result = create_private_forest_native(self.blockStoreInterface)
-        // FIXME: throw an error or something
         guard let ccid = result else {
-            print("Empty cid response")
-            return
+            throw MyError.runtimeError("Empty cid response")
         }
         let cid = String(cString: ccid)
         // Freeing the memory
         Wnfs.cstring_free(ccid)
         
-        try self.createRootDir(cid: cid, wnfsKey: wnfsKey)
+        return try self.createRootDir(cid: cid, wnfsKey: wnfsKey)
     }
     
-    private func createRootDir(cid: String, wnfsKey: String) throws {
+    private func createRootDir(cid: String, wnfsKey: String) throws -> WnfsConfig {
         let msg = wnfsKey.data(using: .utf8)!
         let hashed = SHA256.hash(data: msg)
         var wnfs_key_ptr: UnsafePointer<UInt8>?
@@ -129,36 +124,33 @@ public class WnfsWrapper {
         guard let config = self.unwrapConfigPtr(ptr: ptr) else{
             throw MyError.runtimeError("null config ptr")
         }
-        self.wnfsConfig = config
+        return config
     }
     
-    public func WriteFile(remotePath: String, data: Data)  throws {
-        
-        var content_arr_ptr: UnsafePointer<UInt8>?
-        var content_arr_size: Int?
-        data.withUnsafeBytes { (unsafeBytes) in
-            content_arr_ptr = unsafeBytes.bindMemory(to: UInt8.self).baseAddress!
-            content_arr_size = unsafeBytes.count
-        }
-        let cCid = makeCString(from: self.wnfsConfig.getCid())
-        let cPrivateRef = makeCString(from: self.wnfsConfig.getPrivateRef())
+    public func WriteFile(wnfsConfig: WnfsConfig, remotePath: String, data: Data)  throws -> WnfsConfig {
+        let content_arr_ptr: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count)
+        let content_arr_size: Int? = data.count
+        data.copyBytes(to: content_arr_ptr, count: data.count)
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
         let cRemotePath = makeCString(from: remotePath)
         let ptr = write_file_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath, content_arr_size!, content_arr_ptr)
         freeCString(cString: cCid)
         freeCString(cString: cPrivateRef)
         freeCString(cString: cRemotePath)
+        content_arr_ptr.deallocate()
         
         guard let config = self.unwrapConfigPtr(ptr: ptr) else{
             throw MyError.runtimeError("null config ptr")
         }
-        self.wnfsConfig = config
+        return config
     }
     
-    public func WriteFileFromPath(remotePath: String, filePath: String) throws {
-        let cCid = makeCString(from: self.wnfsConfig.getCid())
-        let cPrivateRef = makeCString(from: self.wnfsConfig.getPrivateRef())
+    public func WriteFileFromPath(wnfsConfig: WnfsConfig, remotePath: String, fileUrl: URL) throws -> WnfsConfig  {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
         let cRemotePath = makeCString(from: remotePath)
-        let cFilePath = makeCString(from: filePath)
+        let cFilePath = makeCString(from: fileUrl.path)
         let ptr = write_file_from_path_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath, cFilePath)
         
         freeCString(cString: cCid)
@@ -169,12 +161,12 @@ public class WnfsWrapper {
         guard let config = self.unwrapConfigPtr(ptr: ptr) else{
             throw MyError.runtimeError("null config ptr")
         }
-        self.wnfsConfig = config
+        return config
     }
     
-    public func ReadFile(remotePath: String, filePath: String) throws -> Data? {
-        let cCid = makeCString(from: self.wnfsConfig.getCid())
-        let cPrivateRef = makeCString(from: self.wnfsConfig.getPrivateRef())
+    public func ReadFile(wnfsConfig: WnfsConfig, remotePath: String) throws -> Data? {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
         let cRemotePath = makeCString(from: remotePath)
         
         
@@ -197,10 +189,151 @@ public class WnfsWrapper {
         return data
     }
     
+    public func ReadFileToPath(wnfsConfig: WnfsConfig, remotePath: String, fileUrl: URL) throws -> String? {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePath = makeCString(from: remotePath)
+        let cFilePath = makeCString(from: fileUrl.path)
+        
+        
+        let ptr = read_file_to_path_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath, cFilePath)
+        guard let cFileName = ptr else {
+            throw MyError.runtimeError("Empty fileName")
+        }
+        let fileName = String(cString: cFileName)
+        // Freeing the memory
+        cstring_free(cFileName)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePath)
+        freeCString(cString: cFilePath)
+        return fileName
+    }
+    
+    public func ReadFileStreamToPath(wnfsConfig: WnfsConfig, remotePath: String, fileUrl: URL) throws -> String? {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePath = makeCString(from: remotePath)
+        let cFilePath = makeCString(from: fileUrl.path)
+        
+        
+        let ptr = read_filestream_to_path_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath, cFilePath)
+        guard let cFileName = ptr else {
+            throw MyError.runtimeError("Empty fileName")
+        }
+        let fileName = String(cString: cFileName)
+        // Freeing the memory
+        cstring_free(cFileName)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePath)
+        freeCString(cString: cFilePath)
+        return fileName
+    }
+    
+    public func MkDir(wnfsConfig: WnfsConfig, remotePath: String) throws -> WnfsConfig{
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePath = makeCString(from: remotePath)
+        let ptr = mkdir_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePath)
+        
+        guard let config = self.unwrapConfigPtr(ptr: ptr) else{
+            throw MyError.runtimeError("null config ptr")
+        }
+        return config
+    }
+    
+    public func Rm(wnfsConfig: WnfsConfig, remotePath: String) throws -> WnfsConfig {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePath = makeCString(from: remotePath)
+        let ptr = rm_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePath)
+        
+        guard let config = self.unwrapConfigPtr(ptr: ptr) else{
+            throw MyError.runtimeError("null config ptr")
+        }
+        return config
+    }
+    
+    public func Cp(wnfsConfig: WnfsConfig, remotePathFrom: String, remotePathTo: String) throws -> WnfsConfig {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePathFrom = makeCString(from: remotePathFrom)
+        let cRemotePathTo = makeCString(from: remotePathTo)
+        let ptr = cp_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePathFrom, cRemotePathTo)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePathFrom)
+        freeCString(cString: cRemotePathTo)
+        
+        guard let config = self.unwrapConfigPtr(ptr: ptr) else{
+            throw MyError.runtimeError("null config ptr")
+        }
+
+        return config
+    }
+    
+    public func Ls(wnfsConfig: WnfsConfig, remotePath: String) throws -> Data? {
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePath = makeCString(from: remotePath)
+        
+        // Needed to deallocate memory in the rust part
+        let cLen: UnsafeMutablePointer<Int>? = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+        let cCapacity: UnsafeMutablePointer<Int>? = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+        let ptr = ls_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePath, cLen, cCapacity)
+        
+        if ptr == nil{
+            return nil
+        }
+        
+        let data = toData(ptr: ptr, size: cLen)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePath)
+        // TODO:
+//        cbytes_free(data: ptr, len: cLen?.pointee, capacity: cCapacity?.pointee)
+        cLen?.deallocate()
+        cCapacity?.deallocate()
+        return data
+    }
+    
+    public func Mv(wnfsConfig: WnfsConfig, remotePathFrom: String, remotePathTo: String) throws -> WnfsConfig{
+        let cCid = makeCString(from: wnfsConfig.getCid())
+        let cPrivateRef = makeCString(from: wnfsConfig.getPrivateRef())
+        let cRemotePathFrom = makeCString(from: remotePathFrom)
+        let cRemotePathTo = makeCString(from: remotePathTo)
+        let ptr = mv_native(self.blockStoreInterface, cCid, cPrivateRef, cRemotePathFrom, cRemotePathTo)
+        
+        freeCString(cString: cCid)
+        freeCString(cString: cPrivateRef)
+        freeCString(cString: cRemotePathFrom)
+        freeCString(cString: cRemotePathTo)
+        
+        guard let config = self.unwrapConfigPtr(ptr: ptr) else{
+            throw MyError.runtimeError("null config ptr")
+        }
+        
+        return config
+    }
+    
+    
     private func unwrapConfigPtr(ptr: UnsafeMutablePointer<Config>?) -> WnfsConfig? {
         let cid = String(cString: ptr!.pointee.cid!)
         let privateRef = String(cString: ptr!.pointee.private_ref!)
-        var c = WnfsConfig(cid: cid, privateRef: privateRef)
+        let c = WnfsConfig(cid: cid, privateRef: privateRef)
         config_free(ptr)
         return c
     }

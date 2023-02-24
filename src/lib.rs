@@ -362,7 +362,7 @@ pub mod ios {
                 .unwrap();
             let path_segments = prepare_path_segments(path_segments);
             let content = ffi_input_array_to_vec(content_arr_len, content_arr_pointer);
-
+            println!("content: {:?}", content);
             //let (cid, private_ref) =
             let write_file_res =
                 helper.synced_write_file(forest.to_owned(), root_dir, &path_segments, content, 0);
@@ -1031,6 +1031,15 @@ mod ios_tests {
             {
                 let mut len: usize = 0;
                 let mut capacity: usize = 0;
+
+                cfg = mkdir_native(
+                    get_block_store_interface(),
+                    cid,
+                    private_ref,
+                    string_to_cstring("root/test1".into()),
+                );
+                (cid, private_ref) = test_cfg(cfg);
+
                 cfg = cp_native(
                     get_block_store_interface(),
                     cid,
@@ -1039,6 +1048,7 @@ mod ios_tests {
                     string_to_cstring("root/testfrompathcp.txt".into()),
                 );
                 (cid, private_ref) = test_cfg(cfg);
+
                 let content_cp = read_file_native(
                     get_block_store_interface(),
                     cid,
