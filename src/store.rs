@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 
 use anyhow::Ok;
 use anyhow::Result;
+use log::trace;
 use wnfsutils::blockstore::FFIStore;
 use crate::ios::BlockStoreInterface;
 use crate::ios::cbytes_free;
@@ -50,7 +51,7 @@ impl<'a> FFIStore<'a> for BridgedStore {
             cbytes_free(cid, len as i32, capacity as i32);
             let data = _data.as_ref().unwrap();
             let out = c_array_to_vec(data.ptr, data.count).clone();
-            println!("get: cid({:?}) -> data({})", _cid, LongVec(out.to_owned()));
+            trace!("get: cid({:?}) -> data({})", _cid, LongVec(out.to_owned()));
             self.block_store_interface.to_owned().dealloc(_data.to_owned());
             Ok(out)
         }
@@ -66,7 +67,7 @@ impl<'a> FFIStore<'a> for BridgedStore {
             cbytes_free(bytes, len as i32, capacity as i32);
             let data = _data.as_ref().unwrap();
             let out = c_array_to_vec(data.ptr as *mut _, data.count).clone();
-            println!("put: data({}) -> cid({:?})", LongVec(_bytes), out);
+            trace!("put: data({}) -> cid({:?})", LongVec(_bytes), out);
             self.block_store_interface.to_owned().dealloc(_data.to_owned());
             Ok(out)
         }

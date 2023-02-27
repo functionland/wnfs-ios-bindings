@@ -25,9 +25,10 @@ let package = Package(
                 dependencies: ["Wnfs", .product(name: "CID", package: "swift-cid"),]),
             .binaryTarget(
                 name: "Wnfs",
-                path: "../build/Wnfs.xcframework"),
-                // url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
-                // checksum: "85e83f29d6b21c65d42d5fe08e82bbe31f98e69a41eaaa7502154ef13bc2c02e"),
+                // You can use local path for faster development
+                // path: "../build/Wnfs.xcframework"),
+                url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
+                checksum: "d0197cca1dfd4bd7fd84e1438b87876215d42d4a80dd0e716d0b509ddb1d7bb0"),
            
             .testTarget(
                 name: "WnfsSwiftTests",
