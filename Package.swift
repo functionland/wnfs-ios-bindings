@@ -5,7 +5,7 @@ let package = Package(
         name: "WnfsSwift",
         platforms: [
             .iOS(.v8), 
-            .macOS(.v8)
+            .macOS(.v11)
         ],
         products: [
             .library(
