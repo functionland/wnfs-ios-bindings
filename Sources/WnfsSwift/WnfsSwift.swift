@@ -53,7 +53,7 @@ enum MyError: Error {
 }
 public class WnfsWrapper {
     var blockStoreInterface: BlockStoreInterface
-    init(putFn: @escaping ((_ data: Data?, _ codec: Int64) -> Data?), getFn: @escaping ((_ cid: Data?) -> Data?)) {
+    public init(putFn: @escaping ((_ data: Data?, _ codec: Int64) -> Data?), getFn: @escaping ((_ cid: Data?) -> Data?)) {
         // step 1
         let wrappedClosure = WrapClosure(get_closure: getFn, put_closure: putFn)
         let userdata = Unmanaged.passRetained(wrappedClosure).toOpaque()
