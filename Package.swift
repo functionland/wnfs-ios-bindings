@@ -4,7 +4,7 @@ import Foundation
 let package = Package(
         name: "WnfsSwift",
         platforms: [
-            .iOS(.v13), 
+            .iOS(.v8), 
             .macOS(.v11)
         ],
         products: [
