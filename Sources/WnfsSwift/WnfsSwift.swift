@@ -5,6 +5,7 @@
 //  Created by Homayoun on 1/18/23.
 //
 import Foundation
+import WnfsBindings
 import CryptoKit
 
 private class WrapClosure<G, P> {
@@ -104,7 +105,7 @@ public class WnfsWrapper {
         }
         let cid = String(cString: ccid)
         // Freeing the memory
-        Wnfs.cstring_free(ccid)
+        cstring_free(ccid)
         
         return try self.createRootDir(cid: cid, wnfsKey: wnfsKey)
     }

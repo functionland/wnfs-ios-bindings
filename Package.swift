@@ -26,9 +26,9 @@ let package = Package(
             .binaryTarget(
                 name: "WnfsBindings",
                 // You can use local path for faster development
-                // path: "../build/Wnfs.xcframework"),
+                // path: "../build/WnfsBindings.xcframework"),
                 url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
-                checksum: "14375e7b41c9e7fa553294042611b9d67b83fb27a796306ab4e83a66d35d1764"),
+                checksum: "018bc7fb2ee3218beb5a0c89c880d33552887426537a3c352b9faf7642aa6f9f"),
            
             .testTarget(
                 name: "WnfsSwiftTests",
