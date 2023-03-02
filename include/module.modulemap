@@ -1,4 +1,4 @@
-module Wnfs {
-    header "wnfs.h"
+module WnfsBindings {
+    header "wnfsbindings.h"
     export *
 }

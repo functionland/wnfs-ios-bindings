@@ -1,12 +1,12 @@
 [package]
-name = "wnfs-ios"
+name = "wnfs-swift-bindings"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "wnfs"
+name = "wnfsbindings"
 crate-type = [ "staticlib" ]
 
 [dependencies]
@@ -29,7 +29,3 @@ kv = "0.24.0"
 sha256 = "1.1.1"
 once_cell = "1.17.0"
 hex = "0.4.3"
-# swift-rs = "0.3.0"
-
-# [build-dependencies]
-# swift-rs = { version = "0.3.0", features = ["build"] }
