@@ -12,8 +12,8 @@ let package = Package(
                 name: "WnfsSwift",
                 targets: ["WnfsSwift"]),
             .library(
-                name: "Wnfs",
-                targets: ["Wnfs"]),
+                name: "WnfsBindings",
+                targets: ["WnfsBindings"]),
         ],
         dependencies: [
             // Dependencies declare other packages that this package depends on.
@@ -22,13 +22,13 @@ let package = Package(
         targets: [
             .target(
                 name: "WnfsSwift",
-                dependencies: ["Wnfs", .product(name: "CID", package: "swift-cid"),]),
+                dependencies: ["WnfsBindings", .product(name: "CID", package: "swift-cid"),]),
             .binaryTarget(
-                name: "Wnfs",
+                name: "WnfsBindings",
                 // You can use local path for faster development
                 // path: "../build/Wnfs.xcframework"),
                 url: "https://github.com/hhio618/wnfs-build-xcframework/raw/main/bundle.zip",
-                checksum: "d0197cca1dfd4bd7fd84e1438b87876215d42d4a80dd0e716d0b509ddb1d7bb0"),
+                checksum: "14375e7b41c9e7fa553294042611b9d67b83fb27a796306ab4e83a66d35d1764"),
            
             .testTarget(
                 name: "WnfsSwiftTests",
