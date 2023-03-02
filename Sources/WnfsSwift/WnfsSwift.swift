@@ -29,7 +29,7 @@ func toData(ptr: UnsafePointer<UInt8>?, size: UnsafePointer<Int>?) -> Data? {
 public class WnfsConfig{
     private var cid: String
     private var privateRef: String
-    init(cid: String, privateRef: String) {
+    public init(cid: String, privateRef: String) {
         self.cid = cid
         self.privateRef = privateRef
     }
