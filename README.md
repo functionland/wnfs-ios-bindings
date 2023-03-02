@@ -1,5 +1,5 @@
-# Wnfs iOS bindings
-This is home to the wnfs bindings library for the iOS mobile devices.
+# Wnfs Swift bindings
+This is home to the wnfs bindings library for the Apple mac/ios devices.
 ## Requirements
 - An OSX environment
 - Latest version of Golang and Gomobile installed
