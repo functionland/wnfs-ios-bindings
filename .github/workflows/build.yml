@@ -7,8 +7,8 @@ env:
 
 jobs:
   check:
-    name: Build ArkLib
-    runs-on: ubuntu-latest
+    name: Build & check WNFS swift bindings
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -37,4 +37,18 @@ jobs:
         run: cargo build --verbose --release
 
       - name: Generate the C header
-        run: cargo install --force cbindgen && cbindgen --lang C -o include/wnfs.h .
+        run: cargo install --force cbindgen && cbindgen --lang C -o include/wnfsbindings.h .
+      
+      - name: Build the artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        run: make
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/swift-bundle.zip
+            build/swift-bundle.zip.sha256
+            build/cocoapods-bundle.zip
+            build/cocoapods-bundle.zip.sha256
