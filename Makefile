@@ -16,7 +16,7 @@ x86_64-apple-ios:
 	cargo build --release --target x86_64-apple-ios
 
 lipo-ios:
-    mkdir -p build &&\
+	mkdir -p build && \
 	lipo -create \
 	target/x86_64-apple-ios/release/libwnfsbindings.a \
 	target/aarch64-apple-ios/release/libwnfsbindings.a \
