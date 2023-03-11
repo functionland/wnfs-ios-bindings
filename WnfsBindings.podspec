@@ -9,9 +9,11 @@ Pod::Spec.new do |s|
 
     s.platform          = :ios
     # change the source location
-    s.source            = { :http => 'https://github.com/functionland/wnfs-swift-bindings/releases/download/v0.1.3/cocoapods-bundle.zip' } 
+    s.source            = { :http => 'https://github.com/functionland/wnfs-swift-bindings/releases/download/v0.1.2/swift-bundle.zip' } 
     s.source_files = "include/*.{h}"
     s.ios.deployment_target = '11.0'
-    s.vendored_libraries = '*.a'
+    # s.ios.vendored_libraries = 'libwnfsbindings_iossimulator.a'
+    # s.vendored_libraries = 'libwnfsbindings_ios.a'
+    s.vendored_frameworks = 'WnfsBindings.xcframework'
     s.static_framework = true
 end 
