@@ -1,5 +1,6 @@
 all: clean test gen-c-header add-rust-targets x86_64-apple-ios\
- aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin x86_64-apple-darwin lipo-ios xcode-build bundles
+ aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin\
+  x86_64-apple-darwin lipo-ios lipo-darwin xcode-build bundles
 
 test:
 	cargo test
@@ -28,20 +29,23 @@ lipo-ios:
 	mkdir -p build && \
 	lipo -create \
 	target/x86_64-apple-ios/release/libwnfsbindings.a \
-	target/aarch64-apple-ios/release/libwnfsbindings.a \
-	-output build/libwnfsbindings_ios.a
+	target/aarch64-apple-ios-sim/release/libwnfsbindings.a \
+	-output build/libwnfsbindings_iossimulator.a
+
+lipo-darwin:
+	mkdir -p build && \
+	lipo -create \
+	target/x86_64-apple-darwin/release/libwnfsbindings.a \
+	target/aarch64-apple-darwin/release/libwnfsbindings.a \
+	-output build/libwnfsbindings_darwin.a
 
 xcode-build:
 	xcodebuild -create-xcframework \
-	-library ./target/x86_64-apple-ios/release/libwnfsbindings.a \
+	-library ./build/libwnfsbindings_iossimulator.a \
 	-headers ./include/ \
 	-library ./target/aarch64-apple-ios/release/libwnfsbindings.a \
 	-headers ./include/ \
-	-library ./target/aarch64-apple-ios-sim/release/libwnfsbindings.a \
-	-headers ./include/ \
-	-library ./target/x86_64-apple-darwin/release/libwnfsbindings.a \
-	-headers ./include/ \
-	-library ./target/aarch64-apple-darwin/release/libwnfsbindings.a \
+	-library ./build/libwnfsbindings_darwin.a \
 	-headers ./include/ \
 	-output ./build/WnfsBindings.xcframework
 
@@ -51,9 +55,8 @@ gomobile-install:
 bundles:
 	cp -r include build/ && cd build &&\
 	zip -r ./swift-bundle.zip ./WnfsBindings.xcframework && echo "$$(openssl dgst -sha256 ./swift-bundle.zip)" > ./swift-bundle.zip.sha256 &&\
-	cp ../target/x86_64-apple-ios/release/libwnfsbindings.a libwnfsbindings_iossimulator.a &&\
 	cp ../target/aarch64-apple-ios/release/libwnfsbindings.a libwnfsbindings_ios.a &&\
-	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_ios.a ./libwnfsbindings_iossimulator.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
+	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_darwin.a ./libwnfsbindings_ios.a ./libwnfsbindings_iossimulator.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
 
 clean:
 	rm -rf build/*
