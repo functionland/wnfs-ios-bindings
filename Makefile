@@ -41,7 +41,9 @@ gomobile-install:
 bundles:
 	cp -r include build/ && cd build &&\
 	zip -r ./swift-bundle.zip ./WnfsBindings.xcframework && echo "$$(openssl dgst -sha256 ./swift-bundle.zip)" > ./swift-bundle.zip.sha256 &&\
-	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_ios.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
+	cp ../target/x86_64-apple-ios/release/libwnfsbindings.a libwnfsbindings_iossimulator.a &&\
+	cp ../target/aarch64-apple-ios/release/libwnfsbindings.a libwnfsbindings_ios.a &&\
+	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_ios.a ./libwnfsbindings_iossimulator.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
 
 clean:
 	rm -rf build/*
