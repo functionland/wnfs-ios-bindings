@@ -53,7 +53,7 @@ gomobile-install:
 	go install golang.org/x/mobile/cmd/gomobile@latest
 
 bundles:
-	cp -r include build/ && cd build &&\
+	cp -r include build/ && cp LICENSE ./build/LICENSE && cd build &&\
 	zip -r ./swift-bundle.zip ./WnfsBindings.xcframework && echo "$$(openssl dgst -sha256 ./swift-bundle.zip)" > ./swift-bundle.zip.sha256 &&\
 	cp ../target/aarch64-apple-ios/release/libwnfsbindings.a libwnfsbindings_ios.a &&\
 	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_darwin.a ./libwnfsbindings_ios.a ./libwnfsbindings_iossimulator.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
