@@ -1,6 +1,6 @@
 all: clean test gen-c-header add-rust-targets x86_64-apple-ios\
  aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin\
-  x86_64-apple-darwin lipo-ios lipo-darwin xcode-build bundles
+  x86_64-apple-darwin lipo-ios lipo-darwin xcode-build zip
 
 test:
 	cargo test
@@ -49,14 +49,9 @@ xcode-build:
 	-headers ./include/ \
 	-output ./build/WnfsBindings.xcframework
 
-gomobile-install:
-	go install golang.org/x/mobile/cmd/gomobile@latest
-
-bundles:
-	cp -r include build/ && cp LICENSE ./build/LICENSE && cd build &&\
-	zip -r ./swift-bundle.zip ./WnfsBindings.xcframework && echo "$$(openssl dgst -sha256 ./swift-bundle.zip)" > ./swift-bundle.zip.sha256 &&\
-	cp ../target/aarch64-apple-ios/release/libwnfsbindings.a libwnfsbindings_ios.a &&\
-	zip -r ./cocoapods-bundle.zip ./include ./libwnfsbindings_darwin.a ./libwnfsbindings_ios.a ./libwnfsbindings_iossimulator.a && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
+zip:
+	cd build &&\
+	zip -r ./cocoapods-bundle.zip ./WnfsBindings.xcframework ../LICENSE && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
 
 clean:
 	rm -rf build/*

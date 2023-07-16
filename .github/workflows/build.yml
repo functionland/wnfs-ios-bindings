@@ -48,7 +48,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            build/swift-bundle.zip
-            build/swift-bundle.zip.sha256
             build/cocoapods-bundle.zip
             build/cocoapods-bundle.zip.sha256
