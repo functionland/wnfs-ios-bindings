@@ -1,6 +1,6 @@
 all: clean test gen-c-header add-rust-targets x86_64-apple-ios\
  aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin\
-  x86_64-apple-darwin lipo-ios lipo-darwin xcode-build zip
+  x86_64-apple-darwin lipo-ios lipo-darwin xcode-build bundle
 
 test:
 	cargo test
@@ -49,7 +49,7 @@ xcode-build:
 	-headers ./include/ \
 	-output ./build/WnfsBindings.xcframework
 
-zip:
+bundle:
 	cd build && cp  ../LICENSE . &&\
 	zip -r ./cocoapods-bundle.zip ./WnfsBindings.xcframework ./LICENSE && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
 
