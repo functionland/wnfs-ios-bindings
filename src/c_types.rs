@@ -2,14 +2,13 @@ use std::os::raw::c_char;
 extern crate libc;
 
 use ::core::mem::MaybeUninit as MU;
+use anyhow::Result;
 use libipld::Cid;
 use log::trace;
-use wnfs::common::Metadata;
-use wnfsutils::private_forest::PrivateDirectoryHelper;
 use std::boxed::Box;
 use std::ffi::{CStr, CString};
-use anyhow::Result;
-
+use wnfs::common::Metadata;
+use wnfsutils::private_forest::PrivateDirectoryHelper;
 
 // #[repr(u8)]
 // enum Bool { False = 0, True = 1 }
@@ -23,8 +22,14 @@ pub struct Status {
 impl From<Option<String>> for Status {
     fn from(err: Option<String>) -> Self {
         match err {
-            Some(err) => Self { ok: false, err: serialize_string(err)},
-            None => Self { ok: true, err: serialize_string("".into())},
+            Some(err) => Self {
+                ok: false,
+                err: serialize_string(err),
+            },
+            None => Self {
+                ok: true,
+                err: serialize_string("".into()),
+            },
         }
     }
 }
@@ -52,13 +57,10 @@ pub struct StringResult {
     pub result: *const c_char,
 }
 
-
 pub unsafe fn serialize_result(err: Option<String>) -> *mut GenericResult {
     trace!("**********************serialize_result started**************");
     let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(GenericResult {
-        status,
-    }));
+    let out = Box::into_raw(Box::new(GenericResult { status }));
     std::mem::forget(status);
     std::mem::forget(out);
     out
@@ -67,41 +69,35 @@ pub unsafe fn serialize_result(err: Option<String>) -> *mut GenericResult {
 pub unsafe fn serialize_bytes_result(err: Option<String>, result: *mut u8) -> *mut BytesResult {
     trace!("**********************serialize_bytes_result started**************");
     let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(BytesResult {
-        status,
-        result,
-    }));
+    let out = Box::into_raw(Box::new(BytesResult { status, result }));
     std::mem::forget(status);
     std::mem::forget(out);
     out
 }
 
-pub unsafe fn serialize_string_result(err: Option<String>, result: *const c_char) -> *mut StringResult {
+pub unsafe fn serialize_string_result(
+    err: Option<String>,
+    result: *const c_char,
+) -> *mut StringResult {
     trace!("**********************serialize_string_result started**************");
     let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(StringResult {
-        status,
-        result,
-    }));
+    let out = Box::into_raw(Box::new(StringResult { status, result }));
     std::mem::forget(status);
     std::mem::forget(out);
     out
 }
 
-
-
-pub unsafe fn serialize_config_result(err: Option<String>, result: *const c_char) -> *mut ConfigResult {
+pub unsafe fn serialize_config_result(
+    err: Option<String>,
+    result: *const c_char,
+) -> *mut ConfigResult {
     trace!("**********************serialize_config_result started**************");
     let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(ConfigResult {
-        status,
-        result,
-    }));
+    let out = Box::into_raw(Box::new(ConfigResult { status, result }));
     std::mem::forget(status);
     std::mem::forget(out);
     out
 }
-
 
 pub unsafe fn deserialize_cid(cid: *const c_char) -> Cid {
     let cid_str: String = CStr::from_ptr(cid)
@@ -135,19 +131,13 @@ pub unsafe fn deserialize_string(text: *const c_char) -> String {
         .expect("Failed to parse cid")
         .into();
 
-    trace!(
-        "**********************deserialize_text text={}",
-        _str
-    );
+    trace!("**********************deserialize_text text={}", _str);
     _str
 }
 
 pub fn serialize_string(text: String) -> *mut c_char {
     trace!("**********************serialize_string started**************");
-    trace!(
-        "**********************serialize_string text={:?}",
-        text
-    );
+    trace!("**********************serialize_string text={:?}", text);
     CString::new(text)
         .expect("Failed to serialize result")
         .into_raw()
@@ -200,11 +190,7 @@ pub unsafe fn ffi_input_array_to_vec(size: libc::size_t, array_pointer: *const u
     result
 }
 
-pub unsafe fn vec_to_c_array(
-    buf: &mut Vec<u8>,
-    len: *mut usize,
-    capacity: *mut usize,
-) -> *mut u8 {
+pub unsafe fn vec_to_c_array(buf: &mut Vec<u8>, len: *mut usize, capacity: *mut usize) -> *mut u8 {
     *len = buf.len();
     *capacity = buf.capacity();
     let ptr = unsafe { ::libc::malloc(buf.len()) };
@@ -218,7 +204,7 @@ pub unsafe fn vec_to_c_array(
 }
 
 #[no_mangle]
-pub extern "C" fn status_free(ptr: *mut Status) { 
+pub extern "C" fn status_free(ptr: *mut Status) {
     if ptr.is_null() {
         return;
     }
@@ -230,33 +216,20 @@ pub extern "C" fn status_free(ptr: *mut Status) {
 }
 
 #[no_mangle]
-pub extern "C" fn result_free(ptr: *mut GenericResult) { 
+pub extern "C" fn result_free(ptr: *mut GenericResult) {
     if ptr.is_null() {
         return;
     }
     unsafe {
         let c = Box::from_raw(ptr);
-        
+
         status_free(c.status as *mut _);
         drop(c);
     }
 }
 
 #[no_mangle]
-pub extern "C" fn config_result_free(ptr: *mut ConfigResult) { 
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let c = Box::from_raw(ptr);
-        status_free(c.status as *mut _);
-        cstring_free(c.result as *mut _);
-        drop(c);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn bytes_result_free(ptr: *mut BytesResult) { 
+pub extern "C" fn config_result_free(ptr: *mut ConfigResult) {
     if ptr.is_null() {
         return;
     }
@@ -269,7 +242,20 @@ pub extern "C" fn bytes_result_free(ptr: *mut BytesResult) {
 }
 
 #[no_mangle]
-pub extern "C" fn string_result_free(ptr: *mut StringResult) { 
+pub extern "C" fn bytes_result_free(ptr: *mut BytesResult) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        let c = Box::from_raw(ptr);
+        status_free(c.status as *mut _);
+        cstring_free(c.result as *mut _);
+        drop(c);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn string_result_free(ptr: *mut StringResult) {
     if ptr.is_null() {
         return;
     }

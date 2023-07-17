@@ -1,18 +1,24 @@
-
 #[cfg(test)]
 mod ios_tests {
-    use crate::{ios::*, c_types::{ffi_input_array_to_vec, vec_to_c_array, serialize_string, ConfigResult, deserialize_string}, blockstore_interface::{SwiftData, BlockStoreInterface}};
+    use crate::{
+        blockstore_interface::{BlockStoreInterface, SwiftData},
+        c_types::{
+            deserialize_string, ffi_input_array_to_vec, serialize_string, vec_to_c_array,
+            ConfigResult,
+        },
+        ios::*,
+    };
     use libc::c_void;
     use once_cell::sync::Lazy;
     use sha256::digest;
-    use wnfs::common::CODEC_DAG_CBOR;
-    use wnfsutils::{kvstore::KVBlockStore, blockstore::FFIStore};
     use std::{
         ffi::{CStr, CString},
         fs,
-        os::raw::c_char, ptr, 
+        os::raw::c_char,
+        ptr,
     };
-
+    use wnfs::common::CODEC_DAG_CBOR;
+    use wnfsutils::{blockstore::FFIStore, kvstore::KVBlockStore};
 
     unsafe fn test_cfg(cfg: *mut ConfigResult) -> *const c_char {
         assert!(!cfg.is_null(), "config should not be null");
@@ -31,23 +37,30 @@ mod ios_tests {
             let content_from_path =
                 vec_to_c_array(test_content.as_mut_vec(), &mut len, &mut capacity);
             println!("len: {}, cap: {}", len, capacity);
-            let content =
-                String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, content_from_path)).unwrap();
+            let content = String::from_utf8(ffi_input_array_to_vec(
+                len as libc::size_t,
+                content_from_path,
+            ))
+            .unwrap();
             assert_eq!(content, test_content.to_owned().to_string());
         }
     }
 
+    static STORE: Lazy<KVBlockStore> =
+        Lazy::new(|| KVBlockStore::new(String::from("./tmp/test_db"), CODEC_DAG_CBOR));
 
-    static STORE: Lazy<KVBlockStore> = Lazy::new(|| KVBlockStore::new(String::from("./tmp/test_db"), CODEC_DAG_CBOR));
-    
-    extern fn get(_userdata: *mut c_void, _cid: *const u8, cid_len: *const libc::size_t ) -> *const SwiftData {
+    extern "C" fn get(
+        _userdata: *mut c_void,
+        _cid: *const u8,
+        cid_len: *const libc::size_t,
+    ) -> *const SwiftData {
         let mut capacity: usize = 0;
         let mut len: usize = 0;
-        unsafe{
-            let cid = ffi_input_array_to_vec(*cid_len ,_cid);
+        unsafe {
+            let cid = ffi_input_array_to_vec(*cid_len, _cid);
             let data = &mut STORE.get_block(cid).unwrap();
-            let tmp1 = vec_to_c_array(data,&mut len,&mut capacity);
-            let result =  Box::into_raw(Box::new(SwiftData{
+            let tmp1 = vec_to_c_array(data, &mut len, &mut capacity);
+            let result = Box::into_raw(Box::new(SwiftData {
                 err: serialize_string(String::new()),
                 result_ptr: tmp1,
                 result_count: len,
@@ -57,15 +70,21 @@ mod ios_tests {
         }
     }
 
-    extern fn put(_userdata: *mut c_void, _cid: *const u8, cid_len: *const libc::size_t ,_bytes: *const u8, bytes_len: *const libc::size_t) -> *const SwiftData {
+    extern "C" fn put(
+        _userdata: *mut c_void,
+        _cid: *const u8,
+        cid_len: *const libc::size_t,
+        _bytes: *const u8,
+        bytes_len: *const libc::size_t,
+    ) -> *const SwiftData {
         let mut capacity: usize = 0;
         let mut len: usize = 0;
-        unsafe{
-            let bytes = ffi_input_array_to_vec(*bytes_len ,_bytes);
-            let cid = ffi_input_array_to_vec(*cid_len ,_cid);
+        unsafe {
+            let bytes = ffi_input_array_to_vec(*bytes_len, _bytes);
+            let cid = ffi_input_array_to_vec(*cid_len, _cid);
             STORE.put_block(cid, bytes).unwrap();
-            let tmp1 = vec_to_c_array(&mut Vec::new(),&mut len,&mut capacity);
-            let result =  Box::into_raw(Box::new(SwiftData{
+            let tmp1 = vec_to_c_array(&mut Vec::new(), &mut len, &mut capacity);
+            let result = Box::into_raw(Box::new(SwiftData {
                 err: serialize_string(String::new()),
                 result_ptr: tmp1,
                 result_count: len,
@@ -75,13 +94,11 @@ mod ios_tests {
         }
     }
 
-    extern fn dealloc(_: *const SwiftData){
-        
-    }
+    extern "C" fn dealloc(_: *const SwiftData) {}
 
-    fn get_block_store_interface() -> BlockStoreInterface{
+    fn get_block_store_interface() -> BlockStoreInterface {
         let userdata: *mut c_void = ptr::null_mut();
-        let result = BlockStoreInterface{
+        let result = BlockStoreInterface {
             userdata: userdata,
             put_fn: put,
             get_fn: get,
@@ -130,7 +147,6 @@ mod ios_tests {
                 cfg = write_file_from_path_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     serialize_string("./tmp/test.txt".into()),
                 );
@@ -141,15 +157,16 @@ mod ios_tests {
                 let content_from_path = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
 
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_from_path).result))
-                        .unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_from_path).result,
+                ))
+                .unwrap();
                 assert_eq!(content, test_content.to_owned().to_string());
                 println!("read_file_from_path. content={}", content);
             }
@@ -158,11 +175,11 @@ mod ios_tests {
                 let content_from_path_topath = read_file_to_path_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     serialize_string("./tmp/test2.txt".into()),
                 );
-                let content_str = deserialize_string(Box::from_raw(content_from_path_topath).result);
+                let content_str =
+                    deserialize_string(Box::from_raw(content_from_path_topath).result);
                 println!("content_from_path_topath={}", content_str);
                 assert!(
                     !content_from_path_topath.is_null(),
@@ -177,11 +194,11 @@ mod ios_tests {
                 let content_stream_from_path_topath = read_filestream_to_path_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     serialize_string("./tmp/teststream.txt".into()),
                 );
-                let content_str = deserialize_string(Box::from_raw(content_stream_from_path_topath).result);
+                let content_str =
+                    deserialize_string(Box::from_raw(content_stream_from_path_topath).result);
                 println!("content_stream_from_path_topath={}", content_str);
                 assert!(
                     !content_stream_from_path_topath.is_null(),
@@ -199,7 +216,6 @@ mod ios_tests {
                 cfg = mkdir_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/test1".into()),
                 );
                 cid = test_cfg(cfg);
@@ -207,7 +223,6 @@ mod ios_tests {
                 cfg = cp_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     serialize_string("root/testfrompathcp.txt".into()),
                 );
@@ -216,14 +231,16 @@ mod ios_tests {
                 let content_cp = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathcp.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_cp).result)).unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_cp).result,
+                ))
+                .unwrap();
                 println!("cp. content_cp={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -234,7 +251,6 @@ mod ios_tests {
                 cfg = mv_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompath.txt".into()),
                     serialize_string("root/testfrompathmv.txt".into()),
                 );
@@ -242,14 +258,16 @@ mod ios_tests {
                 let content_mv = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathmv.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_mv).result)).unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_mv).result,
+                ))
+                .unwrap();
                 println!("mv. content_mv={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -260,21 +278,22 @@ mod ios_tests {
                 cfg = rm_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathmv.txt".into()),
                 );
                 cid = test_cfg(cfg);
                 let content_rm1 = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathmv.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_rm1).result)).unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_rm1).result,
+                ))
+                .unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -285,21 +304,22 @@ mod ios_tests {
                 cfg = rm_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathcp.txt".into()),
                 );
                 cid = test_cfg(cfg);
                 let content_rm2 = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/testfrompathcp.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_rm2).result)).unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_rm2).result,
+                ))
+                .unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -319,7 +339,6 @@ mod ios_tests {
                 cfg = write_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/test.txt".into()),
                     len,
                     test_content_ptr,
@@ -329,7 +348,6 @@ mod ios_tests {
                 cfg = mkdir_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/test1".into()),
                 );
                 cid = test_cfg(cfg);
@@ -337,27 +355,31 @@ mod ios_tests {
                 let content_ls = ls_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let file_names =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_ls).result)).unwrap();
+                let file_names = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_ls).result,
+                ))
+                .unwrap();
                 println!("ls. fileNames={}", file_names);
 
                 let content_test = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/test.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_test).result)).unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_test).result,
+                ))
+                .unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -379,19 +401,19 @@ mod ios_tests {
                     cid,
                 );
 
-
                 let content_reloaded = read_file_native(
                     get_block_store_interface(),
                     cid,
-
                     serialize_string("root/test.txt".into()),
                     &mut len,
                     &mut capacity,
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content =
-                    String::from_utf8(ffi_input_array_to_vec(len as libc::size_t, Box::from_raw(content_reloaded).result))
-                        .unwrap();
+                let content = String::from_utf8(ffi_input_array_to_vec(
+                    len as libc::size_t,
+                    Box::from_raw(content_reloaded).result,
+                ))
+                .unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -403,7 +425,9 @@ mod ios_tests {
                     serialize_string("root/test.txt".into()),
                     serialize_string("./tmp/test2.txt".into()),
                 );
-                let content_str = deserialize_string(Box::from_raw(content_from_path_topath_reloaded).result as *mut _);
+                let content_str = deserialize_string(
+                    Box::from_raw(content_from_path_topath_reloaded).result as *mut _,
+                );
                 println!("content_from_path_topath_reloaded={}", content_str);
                 assert!(
                     !content_from_path_topath_reloaded.is_null(),

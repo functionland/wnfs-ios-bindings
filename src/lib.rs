@@ -4,14 +4,19 @@ pub mod c_types;
 pub mod tests;
 pub mod ios {
     extern crate libc;
+    use crate::blockstore::BridgedStore;
+    use crate::blockstore_interface::BlockStoreInterface;
+    use crate::c_types::{
+        deserialize_cid, deserialize_string, ffi_input_array_to_vec, prepare_ls_output,
+        prepare_path_segments, serialize_bytes_result, serialize_cid, serialize_config_result,
+        serialize_result, serialize_string, serialize_string_result, vec_to_c_array, BytesResult,
+        ConfigResult, GenericResult, StringResult,
+    };
     use log::trace;
     use std::boxed::Box;
     use std::os::raw::c_char;
     use wnfsutils::blockstore::FFIFriendlyBlockStore;
     use wnfsutils::private_forest::PrivateDirectoryHelper;
-    use crate::blockstore::BridgedStore;
-    use crate::blockstore_interface::BlockStoreInterface;
-    use crate::c_types::{ffi_input_array_to_vec, deserialize_cid, serialize_result, GenericResult, ConfigResult, serialize_config_result, serialize_cid, serialize_string, prepare_path_segments, deserialize_string, serialize_string_result, StringResult, BytesResult, serialize_bytes_result, vec_to_c_array, prepare_ls_output};
 
     #[no_mangle]
     pub extern "C" fn load_with_wnfs_key_native(
@@ -22,25 +27,26 @@ pub mod ios {
     ) -> *mut GenericResult {
         trace!("**********************load_with_wnfs_key_native started**************");
         unsafe {
-            let store = BridgedStore::new(
-               block_store_interface
-           );
+            let store = BridgedStore::new(block_store_interface);
             let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
             let wnfs_key: Vec<u8> = ffi_input_array_to_vec(wnfs_key_arr_len, wnfs_key_arr_pointer);
             let forest_cid = deserialize_cid(cid);
-            let helper_res = PrivateDirectoryHelper::synced_load_with_wnfs_key(block_store, forest_cid, wnfs_key);
+            let helper_res = PrivateDirectoryHelper::synced_load_with_wnfs_key(
+                block_store,
+                forest_cid,
+                wnfs_key,
+            );
             trace!("**********************load_with_wnfs_key_native finished**************");
             if helper_res.is_ok() {
                 serialize_result(None)
             } else {
                 let msg = helper_res.err().unwrap();
                 trace!("wnfsError in load_with_wnfs_key_native: {:?}", msg);
-                serialize_result( Some(msg))
+                serialize_result(Some(msg))
             }
         }
     }
 
- 
     #[no_mangle]
     pub extern "C" fn init_native(
         block_store_interface: BlockStoreInterface,
@@ -48,23 +54,20 @@ pub mod ios {
         wnfs_key_arr_pointer: *const u8,
     ) -> *mut ConfigResult {
         trace!("**********************init_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let wnfs_key: Vec<u8> = unsafe { ffi_input_array_to_vec(wnfs_key_arr_len, wnfs_key_arr_pointer) };
+        let wnfs_key: Vec<u8> =
+            unsafe { ffi_input_array_to_vec(wnfs_key_arr_len, wnfs_key_arr_pointer) };
         let helper_res = PrivateDirectoryHelper::synced_init(block_store, wnfs_key);
-        
+
         if helper_res.is_ok() {
             let (_, _, cid) = helper_res.unwrap();
-            unsafe {
-            serialize_config_result( None, serialize_cid(cid))
-            }
+            unsafe { serialize_config_result(None, serialize_cid(cid)) }
         } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in init_native: {:?}", msg.to_owned());
             unsafe {
-                serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()))
+                serialize_config_result(Some(msg.to_owned()), serialize_string(String::new()))
             }
         }
     }
@@ -73,415 +76,429 @@ pub mod ios {
     pub extern "C" fn write_file_from_path_native(
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
         _filename: *const c_char,
     ) -> *mut ConfigResult {
         trace!("**********************write_file_from_path_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
+        let cid = unsafe { deserialize_cid(cid) };
         let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
-            let helper =&mut helper_res.ok().unwrap();
-                let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let helper = &mut helper_res.ok().unwrap();
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
 
-                let filename = unsafe { deserialize_string(_filename) };
-                trace!("filename, path: {:?} -- {:?}", filename, path_segments);
-                let write_file_result = 
-                    helper.synced_write_file_from_path(&path_segments, &filename);
-                    trace!("**********************write_file_from_path_native finished**************");
-                if write_file_result.is_ok() {
-                    let cid = write_file_result.ok().unwrap();
-                    unsafe{
-                        return serialize_config_result( None, serialize_cid(cid));
-                    }
-                } else {
-                    let msg = write_file_result.err().unwrap();
-                    trace!("wnfsError in write_file_from_path_native: {:?}", msg);
-                    unsafe{
-                        return serialize_config_result( Some(msg), serialize_string(String::new()));
-                    }
+            let filename = unsafe { deserialize_string(_filename) };
+            trace!("filename, path: {:?} -- {:?}", filename, path_segments);
+            let write_file_result = helper.synced_write_file_from_path(&path_segments, &filename);
+            trace!("**********************write_file_from_path_native finished**************");
+            if write_file_result.is_ok() {
+                let cid = write_file_result.ok().unwrap();
+                unsafe {
+                    return serialize_config_result(None, serialize_cid(cid));
                 }
-
+            } else {
+                let msg = write_file_result.err().unwrap();
+                trace!("wnfsError in write_file_from_path_native: {:?}", msg);
+                unsafe {
+                    return serialize_config_result(Some(msg), serialize_string(String::new()));
+                }
+            }
         } else {
             let msg = &mut helper_res.err().unwrap();
-            trace!("wnfsError in write_file_from_path_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            trace!(
+                "wnfsError in write_file_from_path_native: {:?}",
+                msg.to_owned()
+            );
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn read_filestream_to_path_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
         _filename: *const c_char,
     ) -> *mut StringResult {
         trace!("wnfs11 **********************read_filestream_to_path_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
+        let cid = unsafe { deserialize_cid(cid) };
         let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
-        if helper_res.is_ok(){
-            let helper =&mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+        if helper_res.is_ok() {
+            let helper = &mut helper_res.ok().unwrap();
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             let filename = unsafe { deserialize_string(_filename) };
 
             trace!("wnfs11 **********************read_filestream_to_path_native filename created**************");
             let result = helper.synced_read_filestream_to_path(&filename, &path_segments, 0);
             trace!("wnfs11 **********************read_filestream_to_path_native finished**************");
             if result.is_ok() {
-                unsafe{
-                    return serialize_string_result( None, serialize_string(filename));
+                unsafe {
+                    return serialize_string_result(None, serialize_string(filename));
                 }
             } else {
                 let err = result.err().unwrap();
-                trace!("wnfsError occured in read_filestream_to_path_native on result: {:?}", err.to_owned());
-                unsafe{
-                    return serialize_string_result(  Some(err.to_owned()), serialize_string(String::new()));
+                trace!(
+                    "wnfsError occured in read_filestream_to_path_native on result: {:?}",
+                    err.to_owned()
+                );
+                unsafe {
+                    return serialize_string_result(
+                        Some(err.to_owned()),
+                        serialize_string(String::new()),
+                    );
                 }
             }
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
-            trace!("wnfsError in read_filestream_to_path_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_string_result( Some(msg.to_owned()), serialize_string(String::new()));
+            trace!(
+                "wnfsError in read_filestream_to_path_native: {:?}",
+                msg.to_owned()
+            );
+            unsafe {
+                return serialize_string_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn read_file_to_path_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
         path_segments: *const c_char,
         _filename: *const c_char,
     ) -> *mut StringResult {
         trace!("wnfs11 **********************read_file_to_path_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             let filename = unsafe { deserialize_string(_filename) };
 
             trace!("wnfs11 **********************read_file_to_path_native filename created**************");
             let result = helper.synced_read_file_to_path(&path_segments, &filename);
             trace!("wnfs11 **********************read_file_to_path_native finished**************");
             if result.is_ok() {
-                unsafe{
-                    return serialize_string_result( None, serialize_string(filename));
+                unsafe {
+                    return serialize_string_result(None, serialize_string(filename));
                 }
             } else {
                 let err = result.err().unwrap();
-                trace!("wnfsError occured in read_file_to_path_native on result: {:?}", err.to_owned());
-                unsafe{
-                    return serialize_string_result(  Some(err.to_owned()), serialize_string(String::new()));
+                trace!(
+                    "wnfsError occured in read_file_to_path_native on result: {:?}",
+                    err.to_owned()
+                );
+                unsafe {
+                    return serialize_string_result(
+                        Some(err.to_owned()),
+                        serialize_string(String::new()),
+                    );
                 }
             }
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
-            trace!("wnfsError in read_file_to_path_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_string_result( Some(msg.to_owned()), serialize_string(String::new()));
+            trace!(
+                "wnfsError in read_file_to_path_native: {:?}",
+                msg.to_owned()
+            );
+            unsafe {
+                return serialize_string_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
-
     }
 
     #[no_mangle]
     pub extern "C" fn write_file_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
         content_arr_len: libc::size_t,
         content_arr_pointer: *const u8,
     ) -> *mut ConfigResult {
         trace!("**********************write_file_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             let content = unsafe { ffi_input_array_to_vec(content_arr_len, content_arr_pointer) };
 
-            let write_file_res = 
-                helper.synced_write_file(&path_segments, content, 0);
+            let write_file_res = helper.synced_write_file(&path_segments, content, 0);
             trace!("**********************write_file_native finished**************");
             if write_file_res.is_ok() {
                 let cid = write_file_res.ok().unwrap();
-                unsafe{
-                    serialize_config_result( None, serialize_cid(cid))
-                }
+                unsafe { serialize_config_result(None, serialize_cid(cid)) }
             } else {
-                let msg = write_file_res
-                    .err()
-                    .unwrap();
+                let msg = write_file_res.err().unwrap();
                 trace!("wnfsError in write_file_native: {:?}", msg);
-                unsafe{
-                    return serialize_config_result(  Some(msg.to_owned()), serialize_string(String::new()));
+                unsafe {
+                    return serialize_config_result(
+                        Some(msg.to_owned()),
+                        serialize_string(String::new()),
+                    );
                 }
             }
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in write_file_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
-
-        
     }
 
     #[no_mangle]
     pub extern "C" fn read_file_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
         len: *mut libc::size_t,
         capacity: *mut libc::size_t,
     ) -> *mut BytesResult {
         trace!("**********************read_file_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
         let empty_vec = &mut Vec::new();
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             trace!("**********************read_file_native finished**************");
             let result = helper.synced_read_file(&path_segments);
             if result.is_ok() {
-                unsafe{
-                    return serialize_bytes_result( None, vec_to_c_array(&mut result.unwrap(), len, capacity));
+                unsafe {
+                    return serialize_bytes_result(
+                        None,
+                        vec_to_c_array(&mut result.unwrap(), len, capacity),
+                    );
                 }
-            }else{
-                let msg = result
-                    .err()
-                    .unwrap();
+            } else {
+                let msg = result.err().unwrap();
                 trace!("wnfsError in read_file_native: {:?}", msg);
-                unsafe{
-                    return serialize_bytes_result(  Some(msg.to_owned()), vec_to_c_array(empty_vec, len, capacity));
+                unsafe {
+                    return serialize_bytes_result(
+                        Some(msg.to_owned()),
+                        vec_to_c_array(empty_vec, len, capacity),
+                    );
                 }
             }
-
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in read_file_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_bytes_result( Some(msg.to_owned()), vec_to_c_array(empty_vec, len, capacity));
+            unsafe {
+                return serialize_bytes_result(
+                    Some(msg.to_owned()),
+                    vec_to_c_array(empty_vec, len, capacity),
+                );
             }
         }
-
     }
 
     #[no_mangle]
     pub extern "C" fn mkdir_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
     ) -> *mut ConfigResult {
         trace!("**********************mkdir_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             let mkdir_res = helper.synced_mkdir(&path_segments);
             if mkdir_res.is_ok() {
                 let cid = mkdir_res.ok().unwrap();
                 trace!("**********************mkdir_native finished**************");
-                unsafe{return serialize_config_result( None, serialize_cid(cid))}
+                unsafe { return serialize_config_result(None, serialize_cid(cid)) }
             } else {
-                let msg = mkdir_res
-                    .err()
-                    .unwrap();
+                let msg = mkdir_res.err().unwrap();
                 trace!("wnfsError in mkdir_native: {:?}", msg.to_owned());
-                unsafe{return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));}
+                unsafe {
+                    return serialize_config_result(
+                        Some(msg.to_owned()),
+                        serialize_string(String::new()),
+                    );
+                }
             }
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in mkdir_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
     }
 
     #[no_mangle]
     pub extern "C" fn mv_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut ConfigResult {
         trace!("**********************mv_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let source_path_segments = unsafe { prepare_path_segments( source_path_segments) };
-            let target_path_segments = unsafe { prepare_path_segments( target_path_segments) };
+            let source_path_segments = unsafe { prepare_path_segments(source_path_segments) };
+            let target_path_segments = unsafe { prepare_path_segments(target_path_segments) };
             let result = helper.synced_mv(&source_path_segments, &target_path_segments);
             trace!("**********************mv_native finished**************");
             if result.is_ok() {
                 let cid = result.ok().unwrap();
-                unsafe{
-                    return serialize_config_result( None, serialize_cid(cid));
+                unsafe {
+                    return serialize_config_result(None, serialize_cid(cid));
                 }
-            }else {
+            } else {
                 let msg = result.err().unwrap();
                 trace!("wnfsError occured in mv_native: {:?}", msg.to_owned());
-                unsafe{
-                    return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+                unsafe {
+                    return serialize_config_result(
+                        Some(msg.to_owned()),
+                        serialize_string(String::new()),
+                    );
                 }
             }
-    
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in mv_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
-
-
-        
     }
 
     #[no_mangle]
     pub extern "C" fn cp_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
     ) -> *mut ConfigResult {
         trace!("**********************cp_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
 
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let source_path_segments = unsafe { prepare_path_segments( source_path_segments) };
-            let target_path_segments = unsafe { prepare_path_segments( target_path_segments) };
+            let source_path_segments = unsafe { prepare_path_segments(source_path_segments) };
+            let target_path_segments = unsafe { prepare_path_segments(target_path_segments) };
             let result = helper.synced_cp(&source_path_segments, &target_path_segments);
             trace!("**********************cp_native finished**************");
             if result.is_ok() {
                 let cid = result.ok().unwrap();
-                unsafe{
-                    return serialize_config_result( None, serialize_cid(cid));
+                unsafe {
+                    return serialize_config_result(None, serialize_cid(cid));
                 }
-            }else {
+            } else {
                 let msg = result.err().unwrap();
                 trace!("wnfsError occured in cp_native: {:?}", msg.to_owned());
-                unsafe{
-                    return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+                unsafe {
+                    return serialize_config_result(
+                        Some(msg.to_owned()),
+                        serialize_string(String::new()),
+                    );
                 }
             }
-    
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in cp_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
-        
     }
 
     #[no_mangle]
     pub extern "C" fn rm_native(
-        
-        
         block_store_interface: BlockStoreInterface,
         cid: *const c_char,
-        
+
         path_segments: *const c_char,
     ) -> *mut ConfigResult {
         trace!("**********************rm_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
-        
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
+
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-            let path_segments = unsafe { prepare_path_segments( path_segments) };
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
             let rm_res = helper.synced_rm(&path_segments);
             if rm_res.is_ok() {
                 let cid = rm_res.ok().unwrap();
                 trace!("**********************rm_native finished**************");
-                unsafe{return serialize_config_result( None, serialize_cid(cid))}
+                unsafe { return serialize_config_result(None, serialize_cid(cid)) }
             } else {
-                let msg = rm_res
-                    .err()
-                    .unwrap();
+                let msg = rm_res.err().unwrap();
                 trace!("wnfsError in rm_native: {:?}", msg.to_owned());
-                unsafe{return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));}
+                unsafe {
+                    return serialize_config_result(
+                        Some(msg.to_owned()),
+                        serialize_string(String::new()),
+                    );
+                }
             }
-        } else{
+        } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in rm_native: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_config_result( Some(msg.to_owned()), serialize_string(String::new()));
+            unsafe {
+                return serialize_config_result(
+                    Some(msg.to_owned()),
+                    serialize_string(String::new()),
+                );
             }
         }
     }
@@ -495,44 +512,64 @@ pub mod ios {
         capacity: *mut libc::size_t,
     ) -> *mut BytesResult {
         trace!("**********************ls_native started**************");
-        let store = BridgedStore::new(
-               block_store_interface
-           );
+        let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-        let cid = unsafe { deserialize_cid( cid) };
-        let helper_res =PrivateDirectoryHelper::synced_reload(block_store, cid);
+        let cid = unsafe { deserialize_cid(cid) };
+        let helper_res = PrivateDirectoryHelper::synced_reload(block_store, cid);
         let empty_vec = &mut Vec::new();
         if helper_res.is_ok() {
             let helper = &mut helper_res.ok().unwrap();
-                let path_segments = unsafe { prepare_path_segments( path_segments) };
-                let ls_res = helper.synced_ls_files(&path_segments);
-                if ls_res.is_ok() {
-                    let output =
-                        prepare_ls_output(ls_res.ok().unwrap());
-                    trace!("**********************ls_native finished**************");
-                    if output.is_ok() {
-                        let res = output.ok().unwrap();
-                        unsafe { return serialize_bytes_result( None, vec_to_c_array(&mut res.to_owned(), len, capacity));}
-                    } else {
-                        let msg = output.err().unwrap().to_string();
-                        trace!("wnfsError occured in ls_native output: {:?}", msg.to_owned());
-                        unsafe { return serialize_bytes_result( Some(msg), vec_to_c_array(empty_vec, len, capacity));}
+            let path_segments = unsafe { prepare_path_segments(path_segments) };
+            let ls_res = helper.synced_ls_files(&path_segments);
+            if ls_res.is_ok() {
+                let output = prepare_ls_output(ls_res.ok().unwrap());
+                trace!("**********************ls_native finished**************");
+                if output.is_ok() {
+                    let res = output.ok().unwrap();
+                    unsafe {
+                        return serialize_bytes_result(
+                            None,
+                            vec_to_c_array(&mut res.to_owned(), len, capacity),
+                        );
                     }
                 } else {
-                    let msg = ls_res.err().unwrap();
-                    trace!("wnfsError occured in ls_native ls_res: {:?}", msg.to_owned());
-                    unsafe{
-                        return serialize_bytes_result( Some(msg.to_owned()), vec_to_c_array(empty_vec, len, capacity));
+                    let msg = output.err().unwrap().to_string();
+                    trace!(
+                        "wnfsError occured in ls_native output: {:?}",
+                        msg.to_owned()
+                    );
+                    unsafe {
+                        return serialize_bytes_result(
+                            Some(msg),
+                            vec_to_c_array(empty_vec, len, capacity),
+                        );
                     }
                 }
+            } else {
+                let msg = ls_res.err().unwrap();
+                trace!(
+                    "wnfsError occured in ls_native ls_res: {:?}",
+                    msg.to_owned()
+                );
+                unsafe {
+                    return serialize_bytes_result(
+                        Some(msg.to_owned()),
+                        vec_to_c_array(empty_vec, len, capacity),
+                    );
+                }
+            }
         } else {
             let msg = helper_res.err().unwrap();
-            trace!("wnfsError occured in ls_native forest_res: {:?}", msg.to_owned());
-            unsafe{
-                return serialize_bytes_result( Some(msg.to_owned()), vec_to_c_array(empty_vec, len, capacity));
+            trace!(
+                "wnfsError occured in ls_native forest_res: {:?}",
+                msg.to_owned()
+            );
+            unsafe {
+                return serialize_bytes_result(
+                    Some(msg.to_owned()),
+                    vec_to_c_array(empty_vec, len, capacity),
+                );
             }
         }
     }
-
-
 }

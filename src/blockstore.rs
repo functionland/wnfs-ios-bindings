@@ -13,14 +13,12 @@ use crate::blockstore_interface::BlockStoreInterface;
 use crate::c_types::cbytes_free;
 use crate::c_types::vec_to_c_array;
 
-
-
 struct LongVec(Vec<u8>);
 impl Display for LongVec {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let mut comma_separated = String::new();
 
-        for num in &self.0[0..min(self.0.len() - 1,50)] {
+        for num in &self.0[0..min(self.0.len() - 1, 50)] {
             comma_separated.push_str(&num.to_string());
             comma_separated.push_str(", ");
         }
@@ -32,23 +30,22 @@ impl Display for LongVec {
 
 #[derive(Clone)]
 pub struct BridgedStore {
-    block_store_interface: BlockStoreInterface
+    block_store_interface: BlockStoreInterface,
 }
 
 impl<'a> BridgedStore {
     pub fn new(block_store_interface: BlockStoreInterface) -> BridgedStore {
         let block_store_interface = block_store_interface;
-        return BridgedStore{
+        return BridgedStore {
             block_store_interface: block_store_interface,
-        }
-    
+        };
     }
 }
 
 impl<'a> FFIStore<'a> for BridgedStore {
     /// Retrieves an array of bytes from the block store with given CID.
     fn get_block(&self, _cid: Vec<u8>) -> Result<Vec<u8>> {
-        unsafe{
+        unsafe {
             let mut len: usize = 0;
             let mut capacity: usize = 0;
             let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut len, &mut capacity);
@@ -61,26 +58,38 @@ impl<'a> FFIStore<'a> for BridgedStore {
                 .expect("Failed to parse err")
                 .into();
             if err_string.is_empty() {
-                trace!("get: cid({:?}) -> data({})", _cid, LongVec(result.to_owned()));
-                self.block_store_interface.to_owned().dealloc(_data.to_owned());
+                trace!(
+                    "get: cid({:?}) -> data({})",
+                    _cid,
+                    LongVec(result.to_owned())
+                );
+                self.block_store_interface
+                    .to_owned()
+                    .dealloc(_data.to_owned());
                 Ok(result.to_owned())
             } else {
                 Err(anyhow::format_err!(err_string))
             }
-
         }
     }
 
     /// Stores an array of bytes in the block store.
     fn put_block(&self, _cid: Vec<u8>, _bytes: Vec<u8>) -> Result<()> {
-        unsafe{
+        unsafe {
             let mut bytes_len: usize = 0;
             let mut bytes_capacity: usize = 0;
             let mut cid_len: usize = 0;
             let mut cid_capacity: usize = 0;
-            let bytes = vec_to_c_array(_bytes.to_owned().as_mut(), &mut bytes_len, &mut bytes_capacity);
+            let bytes = vec_to_c_array(
+                _bytes.to_owned().as_mut(),
+                &mut bytes_len,
+                &mut bytes_capacity,
+            );
             let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut cid_len, &mut cid_capacity);
-            let _data = self.block_store_interface.to_owned().put(cid, &mut cid_len, bytes, &mut bytes_len);
+            let _data =
+                self.block_store_interface
+                    .to_owned()
+                    .put(cid, &mut cid_len, bytes, &mut bytes_len);
             cbytes_free(bytes, bytes_len as i32, bytes_capacity as i32);
             cbytes_free(cid, cid_len as i32, cid_capacity as i32);
             let data = _data.as_ref().unwrap();
@@ -90,7 +99,9 @@ impl<'a> FFIStore<'a> for BridgedStore {
                 .into();
             if err_string.is_empty() {
                 trace!("get: cid({:?}) -> data({:})", _cid, LongVec(_bytes));
-                self.block_store_interface.to_owned().dealloc(_data.to_owned());
+                self.block_store_interface
+                    .to_owned()
+                    .dealloc(_data.to_owned());
                 Ok(())
             } else {
                 Err(anyhow::format_err!(err_string))
@@ -104,13 +115,17 @@ pub unsafe fn c_array_to_vec(ptr: *const u8, size: libc::size_t) -> Vec<u8> {
 }
 
 #[cfg(test)]
-mod tests{
-    use libipld::{multihash::{MultihashGeneric, MultihashDigest}, IpldCodec, Cid, cid::Version};
+mod tests {
     use hex;
+    use libipld::{
+        cid::Version,
+        multihash::{MultihashDigest, MultihashGeneric},
+        Cid, IpldCodec,
+    };
 
     #[test]
     fn test_codec() {
-            //let codec_u8_array:[u8;8] = vec_to_array(codec);
+        //let codec_u8_array:[u8;8] = vec_to_array(codec);
         //let codec_u64 = u64::from_be_bytes(codec_u8_array);
         let codec_u64: u64 = u64::try_from(113).unwrap();
         let hash: MultihashGeneric<64> = libipld::multihash::Code::Sha2_256.digest(b"abc");
@@ -120,10 +135,13 @@ mod tests{
         assert!(cid.to_string() == "bafyreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu");
 
         let input = "01711220fac1804f9aa7394df8439e08af28a97b7a1dcc84c4cb64697d7bfb9d296a84c0";
-        let cid_bytes =  hex::decode(input).unwrap();
-    
+        let cid_bytes = hex::decode(input).unwrap();
+
         let cid_recreated = Cid::try_from(cid_bytes).unwrap();
         assert!(cid_recreated.version() == Version::V1);
-        assert!(cid_recreated.to_string() == "bafyreih2ygae7gvhhfg7qq46bcxsrkl3pio4zbgeznsgs7l37ooss2ueya");
+        assert!(
+            cid_recreated.to_string()
+                == "bafyreih2ygae7gvhhfg7qq46bcxsrkl3pio4zbgeznsgs7l37ooss2ueya"
+        );
     }
 }

@@ -14,17 +14,33 @@ pub struct SwiftData {
 #[derive(Clone)]
 pub struct BlockStoreInterface {
     pub userdata: *mut c_void,
-    pub put_fn: extern "C" fn(userdata: *mut c_void, cid: *const u8, cid_len: *const libc::size_t, bytes: *const u8, bytes_len: *const libc::size_t) -> *const SwiftData,
-    pub get_fn: extern "C" fn(userdata: *mut c_void, cid: *const u8, cid_len: *const libc::size_t) -> * const SwiftData,
+    pub put_fn: extern "C" fn(
+        userdata: *mut c_void,
+        cid: *const u8,
+        cid_len: *const libc::size_t,
+        bytes: *const u8,
+        bytes_len: *const libc::size_t,
+    ) -> *const SwiftData,
+    pub get_fn: extern "C" fn(
+        userdata: *mut c_void,
+        cid: *const u8,
+        cid_len: *const libc::size_t,
+    ) -> *const SwiftData,
     pub dealloc: extern "C" fn(swiftdata: *const SwiftData),
 }
 
 unsafe impl Send for BlockStoreInterface {}
 
 impl BlockStoreInterface {
-    pub fn put(self,  cid: *const u8, cid_len: *const libc::size_t, bytes: *const u8, bytes_len: *const libc::size_t) -> *const SwiftData {
+    pub fn put(
+        self,
+        cid: *const u8,
+        cid_len: *const libc::size_t,
+        bytes: *const u8,
+        bytes_len: *const libc::size_t,
+    ) -> *const SwiftData {
         let result = (self.put_fn)(self.userdata, cid, cid_len, bytes, bytes_len);
-        std::mem::forget(self); 
+        std::mem::forget(self);
         result
     }
     pub fn get(self, cid: *const u8, cid_len: *const libc::size_t) -> *const SwiftData {
@@ -33,7 +49,7 @@ impl BlockStoreInterface {
         result
     }
 
-    pub fn dealloc(self, data: *const SwiftData){
+    pub fn dealloc(self, data: *const SwiftData) {
         (self.dealloc)(data);
         std::mem::forget(self);
     }
