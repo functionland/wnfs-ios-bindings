@@ -51,7 +51,7 @@ xcode-build:
 
 zip:
 	cd build && cp  ../LICENSE . &&\
-	zip -r ./cocoapods-bundle.zip ./WnfsBindings.xcframework ../LICENSE && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
+	zip -r ./cocoapods-bundle.zip ./WnfsBindings.xcframework ./LICENSE && echo "$$(openssl dgst -sha256 ./cocoapods-bundle.zip)" > ./cocoapods-bundle.zip.sha256
 
 clean:
 	rm -rf build/*
