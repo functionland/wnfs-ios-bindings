@@ -4,7 +4,7 @@ mod ios_tests {
         blockstore_interface::{BlockStoreInterface, SwiftData},
         c_types::{
             deserialize_string, ffi_input_array_to_vec, serialize_string, vec_to_c_array,
-            ConfigResult,
+            RustResult,
         },
         ios::*,
     };
@@ -20,7 +20,7 @@ mod ios_tests {
     use wnfs::common::CODEC_DAG_CBOR;
     use wnfsutils::{blockstore::FFIStore, kvstore::KVBlockStore};
 
-    unsafe fn test_cfg(cfg: *mut ConfigResult) -> *const c_char {
+    unsafe fn test_cfg(cfg: *mut RustResult<c_char>) -> *const c_char {
         assert!(!cfg.is_null(), "config should not be null");
         assert!(!(*cfg).result.is_null(), "cid should not be null");
         let cid: String = CStr::from_ptr((*cfg).result).to_str().unwrap().into();

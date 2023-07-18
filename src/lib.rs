@@ -8,9 +8,8 @@ pub mod ios {
     use crate::blockstore_interface::BlockStoreInterface;
     use crate::c_types::{
         deserialize_cid, deserialize_string, ffi_input_array_to_vec, prepare_ls_output,
-        prepare_path_segments, serialize_bytes_result, serialize_cid, serialize_config_result,
-        serialize_result, serialize_string, serialize_string_result, vec_to_c_array, BytesResult,
-        ConfigResult, GenericResult, StringResult,
+        prepare_path_segments, serialize_bytes_result, serialize_cid, serialize_result,
+        serialize_string, serialize_string_result, vec_to_c_array, RustResult,
     };
     use log::trace;
     use std::boxed::Box;
@@ -24,7 +23,7 @@ pub mod ios {
         wnfs_key_arr_len: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
         cid: *const c_char,
-    ) -> *mut GenericResult {
+    ) -> *mut RustResult<libc::c_void> {
         trace!("**********************load_with_wnfs_key_native started**************");
         unsafe {
             let store = BridgedStore::new(block_store_interface);
@@ -52,7 +51,7 @@ pub mod ios {
         block_store_interface: BlockStoreInterface,
         wnfs_key_arr_len: libc::size_t,
         wnfs_key_arr_pointer: *const u8,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************init_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -62,12 +61,12 @@ pub mod ios {
 
         if helper_res.is_ok() {
             let (_, _, cid) = helper_res.unwrap();
-            unsafe { serialize_config_result(None, serialize_cid(cid)) }
+            unsafe { serialize_string_result(None, serialize_cid(cid)) }
         } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in init_native: {:?}", msg.to_owned());
             unsafe {
-                serialize_config_result(Some(msg.to_owned()), serialize_string(String::new()))
+                serialize_string_result(Some(msg.to_owned()), serialize_string(String::new()))
             }
         }
     }
@@ -79,7 +78,7 @@ pub mod ios {
 
         path_segments: *const c_char,
         _filename: *const c_char,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************write_file_from_path_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -97,13 +96,13 @@ pub mod ios {
             if write_file_result.is_ok() {
                 let cid = write_file_result.ok().unwrap();
                 unsafe {
-                    return serialize_config_result(None, serialize_cid(cid));
+                    return serialize_string_result(None, serialize_cid(cid));
                 }
             } else {
                 let msg = write_file_result.err().unwrap();
                 trace!("wnfsError in write_file_from_path_native: {:?}", msg);
                 unsafe {
-                    return serialize_config_result(Some(msg), serialize_string(String::new()));
+                    return serialize_string_result(Some(msg), serialize_string(String::new()));
                 }
             }
         } else {
@@ -113,7 +112,7 @@ pub mod ios {
                 msg.to_owned()
             );
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -128,7 +127,7 @@ pub mod ios {
 
         path_segments: *const c_char,
         _filename: *const c_char,
-    ) -> *mut StringResult {
+    ) -> *mut RustResult<c_char> {
         trace!("wnfs11 **********************read_filestream_to_path_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -180,7 +179,7 @@ pub mod ios {
         cid: *const c_char,
         path_segments: *const c_char,
         _filename: *const c_char,
-    ) -> *mut StringResult {
+    ) -> *mut RustResult<c_char> {
         trace!("wnfs11 **********************read_file_to_path_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -235,7 +234,7 @@ pub mod ios {
         path_segments: *const c_char,
         content_arr_len: libc::size_t,
         content_arr_pointer: *const u8,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************write_file_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -251,12 +250,12 @@ pub mod ios {
             trace!("**********************write_file_native finished**************");
             if write_file_res.is_ok() {
                 let cid = write_file_res.ok().unwrap();
-                unsafe { serialize_config_result(None, serialize_cid(cid)) }
+                unsafe { serialize_string_result(None, serialize_cid(cid)) }
             } else {
                 let msg = write_file_res.err().unwrap();
                 trace!("wnfsError in write_file_native: {:?}", msg);
                 unsafe {
-                    return serialize_config_result(
+                    return serialize_string_result(
                         Some(msg.to_owned()),
                         serialize_string(String::new()),
                     );
@@ -266,7 +265,7 @@ pub mod ios {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in write_file_native: {:?}", msg.to_owned());
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -282,7 +281,7 @@ pub mod ios {
         path_segments: *const c_char,
         len: *mut libc::size_t,
         capacity: *mut libc::size_t,
-    ) -> *mut BytesResult {
+    ) -> *mut RustResult<u8> {
         trace!("**********************read_file_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -329,7 +328,7 @@ pub mod ios {
         cid: *const c_char,
 
         path_segments: *const c_char,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************mkdir_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -343,12 +342,12 @@ pub mod ios {
             if mkdir_res.is_ok() {
                 let cid = mkdir_res.ok().unwrap();
                 trace!("**********************mkdir_native finished**************");
-                unsafe { return serialize_config_result(None, serialize_cid(cid)) }
+                unsafe { return serialize_string_result(None, serialize_cid(cid)) }
             } else {
                 let msg = mkdir_res.err().unwrap();
                 trace!("wnfsError in mkdir_native: {:?}", msg.to_owned());
                 unsafe {
-                    return serialize_config_result(
+                    return serialize_string_result(
                         Some(msg.to_owned()),
                         serialize_string(String::new()),
                     );
@@ -358,7 +357,7 @@ pub mod ios {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in mkdir_native: {:?}", msg.to_owned());
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -373,7 +372,7 @@ pub mod ios {
 
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************mv_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -389,13 +388,13 @@ pub mod ios {
             if result.is_ok() {
                 let cid = result.ok().unwrap();
                 unsafe {
-                    return serialize_config_result(None, serialize_cid(cid));
+                    return serialize_string_result(None, serialize_cid(cid));
                 }
             } else {
                 let msg = result.err().unwrap();
                 trace!("wnfsError occured in mv_native: {:?}", msg.to_owned());
                 unsafe {
-                    return serialize_config_result(
+                    return serialize_string_result(
                         Some(msg.to_owned()),
                         serialize_string(String::new()),
                     );
@@ -405,7 +404,7 @@ pub mod ios {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in mv_native: {:?}", msg.to_owned());
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -420,7 +419,7 @@ pub mod ios {
 
         source_path_segments: *const c_char,
         target_path_segments: *const c_char,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************cp_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -436,13 +435,13 @@ pub mod ios {
             if result.is_ok() {
                 let cid = result.ok().unwrap();
                 unsafe {
-                    return serialize_config_result(None, serialize_cid(cid));
+                    return serialize_string_result(None, serialize_cid(cid));
                 }
             } else {
                 let msg = result.err().unwrap();
                 trace!("wnfsError occured in cp_native: {:?}", msg.to_owned());
                 unsafe {
-                    return serialize_config_result(
+                    return serialize_string_result(
                         Some(msg.to_owned()),
                         serialize_string(String::new()),
                     );
@@ -452,7 +451,7 @@ pub mod ios {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in cp_native: {:?}", msg.to_owned());
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -466,7 +465,7 @@ pub mod ios {
         cid: *const c_char,
 
         path_segments: *const c_char,
-    ) -> *mut ConfigResult {
+    ) -> *mut RustResult<c_char> {
         trace!("**********************rm_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
@@ -480,12 +479,12 @@ pub mod ios {
             if rm_res.is_ok() {
                 let cid = rm_res.ok().unwrap();
                 trace!("**********************rm_native finished**************");
-                unsafe { return serialize_config_result(None, serialize_cid(cid)) }
+                unsafe { return serialize_string_result(None, serialize_cid(cid)) }
             } else {
                 let msg = rm_res.err().unwrap();
                 trace!("wnfsError in rm_native: {:?}", msg.to_owned());
                 unsafe {
-                    return serialize_config_result(
+                    return serialize_string_result(
                         Some(msg.to_owned()),
                         serialize_string(String::new()),
                     );
@@ -495,7 +494,7 @@ pub mod ios {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in rm_native: {:?}", msg.to_owned());
             unsafe {
-                return serialize_config_result(
+                return serialize_string_result(
                     Some(msg.to_owned()),
                     serialize_string(String::new()),
                 );
@@ -510,7 +509,7 @@ pub mod ios {
         path_segments: *const c_char,
         len: *mut libc::size_t,
         capacity: *mut libc::size_t,
-    ) -> *mut BytesResult {
+    ) -> *mut RustResult<u8> {
         trace!("**********************ls_native started**************");
         let store = BridgedStore::new(block_store_interface);
         let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));

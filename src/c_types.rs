@@ -1,8 +1,8 @@
-use std::os::raw::c_char;
 extern crate libc;
 
 use ::core::mem::MaybeUninit as MU;
 use anyhow::Result;
+use libc::{c_char, c_void};
 use libipld::Cid;
 use log::trace;
 use std::boxed::Box;
@@ -10,101 +10,57 @@ use std::ffi::{CStr, CString};
 use wnfs::common::Metadata;
 use wnfsutils::private_forest::PrivateDirectoryHelper;
 
-// #[repr(u8)]
-// enum Bool { False = 0, True = 1 }
-
 #[repr(C)]
-pub struct Status {
+pub struct RustResult<T> {
     pub ok: bool,
     pub err: *const c_char,
+    pub result: *const T,
 }
 
-impl From<Option<String>> for Status {
-    fn from(err: Option<String>) -> Self {
-        match err {
+impl<T> RustResult<T> {
+    fn from(err: Option<String>, result: *mut T) -> *mut Self {
+        let rust_result = Box::new(match err {
             Some(err) => Self {
                 ok: false,
                 err: serialize_string(err),
+                result,
             },
             None => Self {
                 ok: true,
-                err: serialize_string("".into()),
+                err: ::std::ptr::null_mut(),
+                result,
             },
+        });
+        let out = Box::into_raw(rust_result);
+        // ::std::mem::forget(rust_result);
+        out
+    }
+
+    pub unsafe fn drop(ptr: *const Self) {
+        if ptr.is_null() {
+            return;
         }
+        let out = Box::from_raw(ptr as *mut T);
+        std::mem::drop(out)
     }
 }
 
-#[repr(C)]
-pub struct GenericResult {
-    pub status: *const Status,
-}
-
-#[repr(C)]
-pub struct ConfigResult {
-    pub status: *const Status,
-    pub result: *const c_char,
-}
-
-#[repr(C)]
-pub struct BytesResult {
-    pub status: *const Status,
-    pub result: *mut u8,
-}
-
-#[repr(C)]
-pub struct StringResult {
-    pub status: *const Status,
-    pub result: *const c_char,
-}
-
-pub unsafe fn serialize_result(err: Option<String>) -> *mut GenericResult {
+pub unsafe fn serialize_result(err: Option<String>) -> *mut RustResult<c_void> {
     trace!("**********************serialize_result started**************");
-    let _status = Status::from(err);
-    let status = Box::into_raw(Box::new(_status));
-    let _out = GenericResult { status };
-    let out = Box::into_raw(Box::new(_out));
-    std::mem::forget(status);
-    std::mem::forget(out);
-    out
+    RustResult::from(err, std::ptr::null_mut())
 }
 
-pub unsafe fn serialize_bytes_result(err: Option<String>, result: *mut u8) -> *mut BytesResult {
+pub unsafe fn serialize_bytes_result(err: Option<String>, result: *mut u8) -> *mut RustResult<u8> {
     trace!("**********************serialize_bytes_result started**************");
-    let _status = Status::from(err);
-    let status = Box::into_raw(Box::new(_status));
-    let _out = BytesResult { status, result };
-    let out = Box::into_raw(Box::new(_out));
-    std::mem::forget(status);
-    std::mem::forget(out);
-    out
+    RustResult::from(err, result)
 }
 
 pub unsafe fn serialize_string_result(
     err: Option<String>,
     result: *const c_char,
-) -> *mut StringResult {
+) -> *mut RustResult<c_char> {
     trace!("**********************serialize_string_result started**************");
-    let _status = Status::from(err);
-    let status = Box::into_raw(Box::new(_status));
-    let _out = StringResult { status, result };
-    let out = Box::into_raw(Box::new(_out));
-    std::mem::forget(status);
-    std::mem::forget(out);
-    out
-}
-
-pub unsafe fn serialize_config_result(
-    err: Option<String>,
-    result: *const c_char,
-) -> *mut ConfigResult {
-    trace!("**********************serialize_config_result started**************");
-    let _status = Status::from(err);
-    let status = Box::into_raw(Box::new(_status));
-    let _out = ConfigResult { status, result };
-    let out = Box::into_raw(Box::new(_out));
-    std::mem::forget(status);
-    std::mem::forget(out);
-    out
+    RustResult::from(err, result as *mut _)
 }
 
 pub unsafe fn deserialize_cid(cid: *const c_char) -> Cid {
@@ -212,66 +168,32 @@ pub unsafe fn vec_to_c_array(buf: &mut Vec<u8>, len: *mut usize, capacity: *mut 
 }
 
 #[no_mangle]
-pub extern "C" fn status_free(ptr: *mut Status) {
+pub extern "C" fn rust_result_string_free(ptr: *mut RustResult<c_char>) {
     if ptr.is_null() {
         return;
     }
     unsafe {
-        let c = Box::from_raw(ptr);
-        cstring_free(c.err as *mut _);
-        drop(c);
+        RustResult::drop(ptr as *const _);
     }
 }
 
 #[no_mangle]
-pub extern "C" fn result_free(ptr: *mut GenericResult) {
+pub extern "C" fn rust_result_void_free(ptr: *mut RustResult<c_void>) {
     if ptr.is_null() {
         return;
     }
     unsafe {
-        let c = Box::from_raw(ptr);
-
-        status_free(c.status as *mut _);
-        drop(c);
+        RustResult::drop(ptr as *const _);
     }
 }
 
 #[no_mangle]
-pub extern "C" fn config_result_free(ptr: *mut ConfigResult) {
+pub extern "C" fn rust_result_bytes_free(ptr: *mut RustResult<u8>) {
     if ptr.is_null() {
         return;
     }
     unsafe {
-        let c = Box::from_raw(ptr);
-        status_free(c.status as *mut _);
-        cstring_free(c.result as *mut _);
-        drop(c);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn bytes_result_free(ptr: *mut BytesResult) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let c = Box::from_raw(ptr);
-        status_free(c.status as *mut _);
-        cstring_free(c.result as *mut _);
-        drop(c);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn string_result_free(ptr: *mut StringResult) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let c = Box::from_raw(ptr);
-        status_free(c.status as *mut _);
-        cstring_free(c.result as *mut _);
-        drop(c);
+        RustResult::drop(ptr as *const _);
     }
 }
 
