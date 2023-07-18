@@ -59,8 +59,10 @@ pub struct StringResult {
 
 pub unsafe fn serialize_result(err: Option<String>) -> *mut GenericResult {
     trace!("**********************serialize_result started**************");
-    let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(GenericResult { status }));
+    let _status = Status::from(err);
+    let status = Box::into_raw(Box::new(_status));
+    let _out = GenericResult { status };
+    let out = Box::into_raw(Box::new(_out));
     std::mem::forget(status);
     std::mem::forget(out);
     out
@@ -68,8 +70,10 @@ pub unsafe fn serialize_result(err: Option<String>) -> *mut GenericResult {
 
 pub unsafe fn serialize_bytes_result(err: Option<String>, result: *mut u8) -> *mut BytesResult {
     trace!("**********************serialize_bytes_result started**************");
-    let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(BytesResult { status, result }));
+    let _status = Status::from(err);
+    let status = Box::into_raw(Box::new(_status));
+    let _out = BytesResult { status, result };
+    let out = Box::into_raw(Box::new(_out));
     std::mem::forget(status);
     std::mem::forget(out);
     out
@@ -80,8 +84,10 @@ pub unsafe fn serialize_string_result(
     result: *const c_char,
 ) -> *mut StringResult {
     trace!("**********************serialize_string_result started**************");
-    let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(StringResult { status, result }));
+    let _status = Status::from(err);
+    let status = Box::into_raw(Box::new(_status));
+    let _out = StringResult { status, result };
+    let out = Box::into_raw(Box::new(_out));
     std::mem::forget(status);
     std::mem::forget(out);
     out
@@ -92,8 +98,10 @@ pub unsafe fn serialize_config_result(
     result: *const c_char,
 ) -> *mut ConfigResult {
     trace!("**********************serialize_config_result started**************");
-    let status = Box::into_raw(Box::new(Status::from(err)));
-    let out = Box::into_raw(Box::new(ConfigResult { status, result }));
+    let _status = Status::from(err);
+    let status = Box::into_raw(Box::new(_status));
+    let _out = ConfigResult { status, result };
+    let out = Box::into_raw(Box::new(_out));
     std::mem::forget(status);
     std::mem::forget(out);
     out
