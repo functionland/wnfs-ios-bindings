@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
     # change the source location
     s.source            = { :http => "https://github.com/functionland/wnfs-ios-bindings/releases/download/v#{s.version}/cocoapods-bundle.zip" } 
     s.ios.deployment_target = '13.0'
-    s.vendored_framework = 'WnfsBindings.xcframework'
+    s.ios.vendored_framework = 'WnfsBindings.xcframework'
     s.static_framework = true
     s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
     s.pod_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
