@@ -24,7 +24,7 @@ typedef struct RustResult_u8 {
 typedef struct SwiftData {
   const char *err;
   const uint8_t *result_ptr;
-  size_t result_count;
+  size_t result_len;
 } SwiftData;
 
 typedef struct BlockStoreInterface {

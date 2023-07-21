@@ -1,8 +1,7 @@
 extern crate libc;
 
-use ::core::mem::MaybeUninit as MU;
 use anyhow::Result;
-use libc::{c_char, c_void};
+use libc::{c_char, size_t};
 use libipld::Cid;
 use log::trace;
 use std::boxed::Box;
@@ -10,110 +9,189 @@ use std::ffi::{CStr, CString};
 use wnfs::common::Metadata;
 use wnfsutils::private_forest::PrivateDirectoryHelper;
 
+pub trait Empty{
+ fn empty() ->  Self;
+}
+
+#[derive(Clone)]
+#[repr(C)]
+pub struct RustBytes {
+    pub data: *const u8,
+    pub len: size_t,
+}
+
+impl From<Vec<u8>> for RustBytes {
+    fn from(value: Vec<u8>) -> Self {
+        let mut buf = value.into_boxed_slice();
+        let data = buf.as_mut_ptr();
+        let len = buf.len();
+        std::mem::forget(buf);
+        Self { data, len }
+    }
+}
+
+impl Into<Vec<u8>> for RustBytes{
+    fn into(self) -> Vec<u8> {
+        if self.data.is_null(){
+            Vec::new()
+        }else {
+        let result = unsafe {std::slice::from_raw_parts(self.data as *const u8, self.len as usize).to_vec()};
+        std::mem::forget(&result);
+        result
+        }
+    }
+}
+
+impl Empty for RustBytes {
+    fn empty() ->  Self {
+        Self { data: ::std::ptr::null_mut(), len: 0 }
+    }
+}
+
+impl Drop for RustBytes{
+    fn drop(&mut self) {
+        if !self.data.is_null(){
+            let s = unsafe { std::slice::from_raw_parts_mut(self.data as *mut u8, self.len) };
+            let s = s.as_mut_ptr();
+            unsafe {
+                Box::from_raw(s);
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+#[repr(C)]
+pub struct RustString {
+    pub str: *const c_char,
+}
+
+impl From<String> for RustString {
+    fn from(value: String) -> Self {
+        trace!("**********************From<String> for RustString  started**************");
+        trace!("**********************From<String> for RustString  text={:?}", value);
+        Self {   str:  CString::new(value)
+            .expect("Failed to serialize string")
+            .into_raw() }
+    }
+}
+
+impl Into<String> for RustString{
+    fn into(self) -> String {
+        trace!("**********************Into<String> for RustString started**************");
+        if self.str.is_null(){
+            "".into()
+        }else{
+            let _str: String = unsafe { CStr::from_ptr(self.str)
+                .to_str()
+                .expect("Failed to parse cid")
+                .into() };
+        
+            trace!("**********************Into<String> for RustString text={}", _str);
+            _str
+        }
+
+    }
+}
+
+impl TryInto<Cid> for RustString {
+    type Error = String;
+
+    fn try_into(self) -> std::result::Result<Cid, Self::Error> {
+        let cid_str: String = self.into();
+        trace!("**********************TryInto<Cid> for RustString started**************");
+        let cid_res = Cid::try_from(cid_str);
+        if cid_res.is_ok() {
+            let cid = cid_res.unwrap();
+            trace!(
+                "**********************TryInto<Cid> for RustString cid={}",
+                cid.to_owned().to_string()
+            );
+            Ok(cid.to_owned())
+        }else{
+            Err(cid_res.err().unwrap().to_string())
+        }
+
+
+    }
+}
+
+impl From<Cid> for RustString {
+    fn from(value: Cid) -> Self {
+        RustString::from(value.to_string())
+    }
+}
+
+impl Empty for RustString {
+    fn empty() ->  Self {
+        Self { str: ::std::ptr::null_mut() }
+    }
+}
+
+impl Drop for RustString{
+    fn drop(&mut self) {
+        if !self.str.is_null(){
+            unsafe {
+                drop(CString::from_raw(self.str as *mut c_char))
+            }
+        }
+    }
+}
+
+
+#[repr(C)]
+pub struct RustVoid {
+}
+impl Empty for RustVoid {
+    fn empty() ->  Self {
+        Self {  }
+    }
+}
+
+#[derive(Clone)]
 #[repr(C)]
 pub struct RustResult<T> {
     pub ok: bool,
-    pub err: *const c_char,
-    pub result: *const T,
+    pub err: RustString,
+    pub result: T,
 }
 
-impl<T> RustResult<T> {
-    fn from(err: Option<String>, result: *mut T) -> *mut Self {
-        let rust_result = Box::new(match err {
+impl<T: Empty> RustResult<T> {
+    fn from(err: Option<RustString>, result: T) -> Self {
+        match err {
             Some(err) => Self {
                 ok: false,
-                err: serialize_string(err),
+                err: err,
                 result,
             },
             None => Self {
                 ok: true,
-                err: ::std::ptr::null_mut(),
+                err: RustString { str: ::std::ptr::null_mut() },
                 result,
             },
-        });
-        let out = Box::into_raw(rust_result);
-        // ::std::mem::forget(rust_result);
-        out
-    }
-
-    pub unsafe fn drop(ptr: *const Self) {
-        if ptr.is_null() {
-            return;
         }
-        let out = Box::from_raw(ptr as *mut T);
-        std::mem::drop(out)
+        
+    }
+
+    pub fn error(err: RustString) -> Self {
+        Self {
+                ok: false,
+                err: err,
+                result: T::empty(),
+        }
+    }
+
+    pub fn ok(result: T) -> Self {
+        Self {
+                ok: true,
+                err: RustString::empty(),
+                result,
+        }
     }
 }
 
-pub unsafe fn serialize_result(err: Option<String>) -> *mut RustResult<c_void> {
-    trace!("**********************serialize_result started**************");
-    RustResult::from(err, std::ptr::null_mut())
-}
-
-pub unsafe fn serialize_bytes_result(err: Option<String>, result: *mut u8) -> *mut RustResult<u8> {
-    trace!("**********************serialize_bytes_result started**************");
-    RustResult::from(err, result)
-}
-
-pub unsafe fn serialize_string_result(
-    err: Option<String>,
-    result: *const c_char,
-) -> *mut RustResult<c_char> {
-    trace!("**********************serialize_string_result started**************");
-    RustResult::from(err, result as *mut _)
-}
-
-pub unsafe fn deserialize_cid(cid: *const c_char) -> Cid {
-    let cid_str: String = CStr::from_ptr(cid)
-        .to_str()
-        .expect("Failed to parse cid")
-        .into();
-    let cid = Cid::try_from(cid_str).unwrap();
-    trace!("**********************deserialize_cid started**************");
-    trace!(
-        "**********************deserialize_cid cid={}",
-        cid.to_string()
-    );
-    cid
-}
-
-pub fn serialize_cid(cid: Cid) -> *mut c_char {
-    trace!("**********************serialize_cid started**************");
-    trace!(
-        "**********************serialize_cid cid={:?}",
-        cid.to_string()
-    );
-    CString::new(cid.to_string())
-        .expect("Failed to serialize result")
-        .into_raw()
-}
-
-pub unsafe fn deserialize_string(text: *const c_char) -> String {
-    trace!("**********************deserialize_cid started**************");
-    let _str: String = CStr::from_ptr(text)
-        .to_str()
-        .expect("Failed to parse cid")
-        .into();
-
-    trace!("**********************deserialize_text text={}", _str);
-    _str
-}
-
-pub fn serialize_string(text: String) -> *mut c_char {
-    trace!("**********************serialize_string started**************");
-    trace!("**********************serialize_string text={:?}", text);
-    CString::new(text)
-        .expect("Failed to serialize result")
-        .into_raw()
-}
-
-pub unsafe fn prepare_path_segments(path_segments: *const c_char) -> Vec<String> {
-    let path: String = CStr::from_ptr(path_segments)
-        .to_str()
-        .expect("Failed to parse input path segments")
-        .into();
-
-    PrivateDirectoryHelper::parse_path(path)
+pub unsafe fn prepare_path_segments(path_segments: RustString) -> Vec<String> {
+    PrivateDirectoryHelper::parse_path(path_segments.into())
         .iter()
         .map(|s| s.to_string())
         .collect()
@@ -148,67 +226,18 @@ pub fn prepare_ls_output(ls_result: Vec<(String, Metadata)>) -> Result<Vec<u8>, 
     Ok(result)
 }
 
-pub unsafe fn ffi_input_array_to_vec(size: libc::size_t, array_pointer: *const u8) -> Vec<u8> {
-    let result = std::slice::from_raw_parts(array_pointer as *const u8, size as usize).to_vec();
-    std::mem::forget(&result);
-    result
-}
 
-pub unsafe fn vec_to_c_array(buf: &mut Vec<u8>, len: *mut usize, capacity: *mut usize) -> *mut u8 {
-    *len = buf.len();
-    *capacity = buf.capacity();
-    let ptr = unsafe { ::libc::malloc(buf.len()) };
-    if ptr.is_null() {
-        return ptr as *mut _;
-    }
-    let dst = ::core::slice::from_raw_parts_mut(ptr.cast::<MU<u8>>(), buf.len());
-    let src = ::core::slice::from_raw_parts(buf.as_ptr().cast::<MU<u8>>(), buf.len());
-    dst.copy_from_slice(src);
-    ptr as *mut _
+#[no_mangle]
+pub extern "C" fn rust_result_string_free(arg: RustResult<RustString>) {
+    drop(arg)
 }
 
 #[no_mangle]
-pub extern "C" fn rust_result_string_free(ptr: *mut RustResult<c_char>) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        RustResult::drop(ptr as *const _);
-    }
+pub extern "C" fn rust_result_void_free(arg: *mut RustResult<RustVoid>) {
+    drop(arg)
 }
 
 #[no_mangle]
-pub extern "C" fn rust_result_void_free(ptr: *mut RustResult<c_void>) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        RustResult::drop(ptr as *const _);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rust_result_bytes_free(ptr: *mut RustResult<u8>) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        RustResult::drop(ptr as *const _);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn cstring_free(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        drop(CString::from_raw(ptr));
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn cbytes_free(data: *mut u8, len: i32, capacity: i32) {
-    let v = Vec::from_raw_parts(data, len as usize, capacity as usize);
-    drop(v); // or it could be implicitly dropped
+pub extern "C" fn rust_result_bytes_free(arg: RustResult<RustBytes>) {
+    drop(arg)
 }

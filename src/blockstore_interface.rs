@@ -1,14 +1,6 @@
-use std::os::raw::c_char;
-
 use libc::c_void;
 
-#[repr(C)]
-#[derive(Clone, Debug)]
-pub struct SwiftData {
-    pub err: *const c_char,
-    pub result_ptr: *const u8,
-    pub result_count: libc::size_t,
-}
+use crate::c_types::{RustBytes, RustResult, RustVoid};
 
 #[repr(C)]
 #[derive(Clone)]
@@ -16,17 +8,15 @@ pub struct BlockStoreInterface {
     pub userdata: *mut c_void,
     pub put_fn: extern "C" fn(
         userdata: *mut c_void,
-        cid: *const u8,
-        cid_len: *const libc::size_t,
-        bytes: *const u8,
-        bytes_len: *const libc::size_t,
-    ) -> *const SwiftData,
+        cid: RustBytes,
+        bytes: RustBytes,
+    ) -> RustResult<RustVoid>,
     pub get_fn: extern "C" fn(
         userdata: *mut c_void,
-        cid: *const u8,
-        cid_len: *const libc::size_t,
-    ) -> *const SwiftData,
-    pub dealloc: extern "C" fn(swiftdata: *const SwiftData),
+        cid: RustBytes,
+    ) -> RustResult<RustBytes>,
+    pub dealloc_after_get: extern "C" fn(data: RustResult<RustBytes>),
+    pub dealloc_after_put: extern "C" fn(data: RustResult<RustVoid>),
 }
 
 unsafe impl Send for BlockStoreInterface {}
@@ -34,23 +24,26 @@ unsafe impl Send for BlockStoreInterface {}
 impl BlockStoreInterface {
     pub fn put(
         self,
-        cid: *const u8,
-        cid_len: *const libc::size_t,
-        bytes: *const u8,
-        bytes_len: *const libc::size_t,
-    ) -> *const SwiftData {
-        let result = (self.put_fn)(self.userdata, cid, cid_len, bytes, bytes_len);
+        cid: RustBytes,
+        bytes: RustBytes,
+    ) -> RustResult<RustVoid> {
+        let result = (self.put_fn)(self.userdata, cid, bytes);
         std::mem::forget(self);
         result
     }
-    pub fn get(self, cid: *const u8, cid_len: *const libc::size_t) -> *const SwiftData {
-        let result = (self.get_fn)(self.userdata, cid, cid_len);
+    pub fn get(self, cid: RustBytes) -> RustResult<RustBytes> {
+        let result = (self.get_fn)(self.userdata, cid);
         std::mem::forget(self);
         result
     }
 
-    pub fn dealloc(self, data: *const SwiftData) {
-        (self.dealloc)(data);
+    pub fn dealloc_after_get(self, data: RustResult<RustBytes>) {
+        (self.dealloc_after_get)(data);
+        std::mem::forget(self);
+    }
+
+    pub fn dealloc_after_put(self, data: RustResult<RustVoid>) {
+        (self.dealloc_after_put)(data);
         std::mem::forget(self);
     }
 }

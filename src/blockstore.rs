@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::ffi::CStr;
 use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
@@ -10,8 +9,7 @@ use log::trace;
 use wnfsutils::blockstore::FFIStore;
 
 use crate::blockstore_interface::BlockStoreInterface;
-use crate::c_types::cbytes_free;
-use crate::c_types::vec_to_c_array;
+use crate::c_types::RustBytes;
 
 struct LongVec(Vec<u8>);
 impl Display for LongVec {
@@ -45,19 +43,14 @@ impl<'a> BridgedStore {
 impl<'a> FFIStore<'a> for BridgedStore {
     /// Retrieves an array of bytes from the block store with given CID.
     fn get_block(&self, _cid: Vec<u8>) -> Result<Vec<u8>> {
-        unsafe {
-            let mut len: usize = 0;
-            let mut capacity: usize = 0;
-            let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut len, &mut capacity);
-            let _data = self.block_store_interface.to_owned().get(cid, &mut len);
-            cbytes_free(cid, len as i32, capacity as i32);
-            let data = _data.as_ref().unwrap();
-            let result = c_array_to_vec(data.result_ptr, data.result_count);
-            let err_string: String = CStr::from_ptr(data.err)
-                .to_str()
-                .expect("Failed to parse err")
-                .into();
-            if err_string.is_empty() {
+  
+            let cid = RustBytes::from(_cid.to_owned());
+            let data = self.block_store_interface.to_owned().get(cid);
+            if !data.to_owned().ok {
+                let err_str: String = data.to_owned().err.into();
+                Err(anyhow::format_err!(err_str))
+            }else {
+                let result: Vec<u8> = data.to_owned().result.into();
                 trace!(
                     "get: cid({:?}) -> data({})",
                     _cid,
@@ -65,48 +58,33 @@ impl<'a> FFIStore<'a> for BridgedStore {
                 );
                 self.block_store_interface
                     .to_owned()
-                    .dealloc(_data.to_owned());
+                    .dealloc_after_get(data);
                 Ok(result.to_owned())
-            } else {
-                Err(anyhow::format_err!(err_string))
             }
-        }
+        
     }
 
     /// Stores an array of bytes in the block store.
     fn put_block(&self, _cid: Vec<u8>, _bytes: Vec<u8>) -> Result<()> {
-        unsafe {
-            let mut bytes_len: usize = 0;
-            let mut bytes_capacity: usize = 0;
-            let mut cid_len: usize = 0;
-            let mut cid_capacity: usize = 0;
-            let bytes = vec_to_c_array(
-                _bytes.to_owned().as_mut(),
-                &mut bytes_len,
-                &mut bytes_capacity,
-            );
-            let cid = vec_to_c_array(_cid.to_owned().as_mut(), &mut cid_len, &mut cid_capacity);
-            let _data =
+       
+            let cid = RustBytes::from(_cid.to_owned());
+            let bytes = RustBytes::from(_bytes.to_owned());
+            let data = self.block_store_interface.to_owned().put(cid, bytes);
+            if !data.ok {
+                let err_str: String = data.err.into();
+                Err(anyhow::format_err!(err_str))
+            }else {
+                trace!(
+                    "get: cid({:?}) -> data({})",
+                    _cid,
+                    LongVec(_bytes.to_owned())
+                );
                 self.block_store_interface
                     .to_owned()
-                    .put(cid, &mut cid_len, bytes, &mut bytes_len);
-            cbytes_free(bytes, bytes_len as i32, bytes_capacity as i32);
-            cbytes_free(cid, cid_len as i32, cid_capacity as i32);
-            let data = _data.as_ref().unwrap();
-            let err_string: String = CStr::from_ptr(data.err)
-                .to_str()
-                .expect("Failed to parse err")
-                .into();
-            if err_string.is_empty() {
-                trace!("get: cid({:?}) -> data({:})", _cid, LongVec(_bytes));
-                self.block_store_interface
-                    .to_owned()
-                    .dealloc(_data.to_owned());
+                    .dealloc_after_put(data);
                 Ok(())
-            } else {
-                Err(anyhow::format_err!(err_string))
             }
-        }
+        
     }
 }
 
