@@ -3,107 +3,99 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct RustResult_c_char {
-  bool ok;
-  const char *err;
-  const char *result;
-} RustResult_c_char;
+typedef struct RustString {
+  const char *str;
+} RustString;
 
-typedef struct RustResult_c_void {
+typedef struct RustResult_RustString {
   bool ok;
-  const char *err;
-  const void *result;
-} RustResult_c_void;
+  struct RustString err;
+  struct RustString result;
+} RustResult_RustString;
 
-typedef struct RustResult_u8 {
+typedef struct RustBytes {
+  const uint8_t *data;
+  size_t len;
+  size_t cap;
+} RustBytes;
+
+typedef struct RustResult_RustBytes {
   bool ok;
-  const char *err;
-  const uint8_t *result;
-} RustResult_u8;
+  struct RustString err;
+  struct RustBytes result;
+} RustResult_RustBytes;
 
-typedef struct SwiftData {
-  const char *err;
-  const uint8_t *result_ptr;
-  size_t result_len;
-} SwiftData;
+typedef struct RustVoid {
+  void *result;
+} RustVoid;
+
+typedef struct RustResult_RustVoid {
+  bool ok;
+  struct RustString err;
+  struct RustVoid result;
+} RustResult_RustVoid;
 
 typedef struct BlockStoreInterface {
   void *userdata;
-  const struct SwiftData *(*put_fn)(void *userdata,
-                                    const uint8_t *cid,
-                                    const size_t *cid_len,
-                                    const uint8_t *bytes,
-                                    const size_t *bytes_len);
-  const struct SwiftData *(*get_fn)(void *userdata, const uint8_t *cid, const size_t *cid_len);
-  void (*dealloc)(const struct SwiftData *swiftdata);
+  struct RustResult_RustVoid (*put_fn)(void *userdata, struct RustBytes cid, struct RustBytes bytes);
+  struct RustResult_RustBytes (*get_fn)(void *userdata, struct RustBytes cid);
+  void (*dealloc_after_get)(struct RustResult_RustBytes data);
+  void (*dealloc_after_put)(struct RustResult_RustVoid data);
 } BlockStoreInterface;
 
-void rust_result_string_free(struct RustResult_c_char *ptr);
+void rust_result_string_free(struct RustResult_RustString arg);
 
-void rust_result_void_free(struct RustResult_c_void *ptr);
+void rust_result_bytes_free(struct RustResult_RustBytes arg);
 
-void rust_result_bytes_free(struct RustResult_u8 *ptr);
+struct RustResult_RustVoid load_with_wnfs_key_native(struct BlockStoreInterface block_store_interface,
+                                                     struct RustBytes wnfs_key,
+                                                     struct RustString cid);
 
-void cstring_free(char *ptr);
+struct RustResult_RustString init_native(struct BlockStoreInterface block_store_interface,
+                                         struct RustBytes wnfs_key);
 
-void cbytes_free(uint8_t *data, int32_t len, int32_t capacity);
+struct RustResult_RustString write_file_from_path_native(struct BlockStoreInterface block_store_interface,
+                                                         struct RustString cid,
+                                                         struct RustString path_segments,
+                                                         struct RustString _filename);
 
-struct RustResult_c_void *load_with_wnfs_key_native(struct BlockStoreInterface block_store_interface,
-                                                    size_t wnfs_key_arr_len,
-                                                    const uint8_t *wnfs_key_arr_pointer,
-                                                    const char *cid);
+struct RustResult_RustString read_filestream_to_path_native(struct BlockStoreInterface block_store_interface,
+                                                            struct RustString cid,
+                                                            struct RustString path_segments,
+                                                            struct RustString _filename);
 
-struct RustResult_c_char *init_native(struct BlockStoreInterface block_store_interface,
-                                      size_t wnfs_key_arr_len,
-                                      const uint8_t *wnfs_key_arr_pointer);
+struct RustResult_RustString read_file_to_path_native(struct BlockStoreInterface block_store_interface,
+                                                      struct RustString cid,
+                                                      struct RustString path_segments,
+                                                      struct RustString _filename);
 
-struct RustResult_c_char *write_file_from_path_native(struct BlockStoreInterface block_store_interface,
-                                                      const char *cid,
-                                                      const char *path_segments,
-                                                      const char *_filename);
+struct RustResult_RustString write_file_native(struct BlockStoreInterface block_store_interface,
+                                               struct RustString cid,
+                                               struct RustString path_segments,
+                                               struct RustBytes _content);
 
-struct RustResult_c_char *read_filestream_to_path_native(struct BlockStoreInterface block_store_interface,
-                                                         const char *cid,
-                                                         const char *path_segments,
-                                                         const char *_filename);
+struct RustResult_RustBytes read_file_native(struct BlockStoreInterface block_store_interface,
+                                             struct RustString cid,
+                                             struct RustString path_segments);
 
-struct RustResult_c_char *read_file_to_path_native(struct BlockStoreInterface block_store_interface,
-                                                   const char *cid,
-                                                   const char *path_segments,
-                                                   const char *_filename);
+struct RustResult_RustString mkdir_native(struct BlockStoreInterface block_store_interface,
+                                          struct RustString cid,
+                                          struct RustString path_segments);
 
-struct RustResult_c_char *write_file_native(struct BlockStoreInterface block_store_interface,
-                                            const char *cid,
-                                            const char *path_segments,
-                                            size_t content_arr_len,
-                                            const uint8_t *content_arr_pointer);
+struct RustResult_RustString mv_native(struct BlockStoreInterface block_store_interface,
+                                       struct RustString cid,
+                                       struct RustString source_path_segments,
+                                       struct RustString target_path_segments);
 
-struct RustResult_u8 *read_file_native(struct BlockStoreInterface block_store_interface,
-                                       const char *cid,
-                                       const char *path_segments,
-                                       size_t *len,
-                                       size_t *capacity);
+struct RustResult_RustString cp_native(struct BlockStoreInterface block_store_interface,
+                                       struct RustString cid,
+                                       struct RustString source_path_segments,
+                                       struct RustString target_path_segments);
 
-struct RustResult_c_char *mkdir_native(struct BlockStoreInterface block_store_interface,
-                                       const char *cid,
-                                       const char *path_segments);
+struct RustResult_RustString rm_native(struct BlockStoreInterface block_store_interface,
+                                       struct RustString cid,
+                                       struct RustString path_segments);
 
-struct RustResult_c_char *mv_native(struct BlockStoreInterface block_store_interface,
-                                    const char *cid,
-                                    const char *source_path_segments,
-                                    const char *target_path_segments);
-
-struct RustResult_c_char *cp_native(struct BlockStoreInterface block_store_interface,
-                                    const char *cid,
-                                    const char *source_path_segments,
-                                    const char *target_path_segments);
-
-struct RustResult_c_char *rm_native(struct BlockStoreInterface block_store_interface,
-                                    const char *cid,
-                                    const char *path_segments);
-
-struct RustResult_u8 *ls_native(struct BlockStoreInterface block_store_interface,
-                                const char *cid,
-                                const char *path_segments,
-                                size_t *len,
-                                size_t *capacity);
+struct RustResult_RustBytes ls_native(struct BlockStoreInterface block_store_interface,
+                                      struct RustString cid,
+                                      struct RustString path_segments);
