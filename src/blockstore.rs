@@ -43,48 +43,44 @@ impl<'a> BridgedStore {
 impl<'a> FFIStore<'a> for BridgedStore {
     /// Retrieves an array of bytes from the block store with given CID.
     fn get_block(&self, _cid: Vec<u8>) -> Result<Vec<u8>> {
-  
-            let cid = RustBytes::from(_cid.to_owned());
-            let data = self.block_store_interface.to_owned().get(cid);
-            if !data.to_owned().ok {
-                let err_str: String = data.to_owned().err.into();
-                Err(anyhow::format_err!(err_str))
-            }else {
-                let result: Vec<u8> = data.to_owned().result.into();
-                trace!(
-                    "get: cid({:?}) -> data({})",
-                    _cid,
-                    LongVec(result.to_owned())
-                );
-                self.block_store_interface
-                    .to_owned()
-                    .dealloc_after_get(data);
-                Ok(result.to_owned())
-            }
-        
+        let cid = RustBytes::from(_cid.to_owned());
+        let data = self.block_store_interface.to_owned().get(cid);
+        if !data.to_owned().ok {
+            let err_str: String = data.to_owned().err.into();
+            Err(anyhow::format_err!(err_str))
+        } else {
+            let result: Vec<u8> = data.to_owned().result.into();
+            trace!(
+                "get: cid({:?}) -> data({})",
+                _cid,
+                LongVec(result.to_owned())
+            );
+            self.block_store_interface
+                .to_owned()
+                .dealloc_after_get(data);
+            Ok(result.to_owned())
+        }
     }
 
     /// Stores an array of bytes in the block store.
     fn put_block(&self, _cid: Vec<u8>, _bytes: Vec<u8>) -> Result<()> {
-       
-            let cid = RustBytes::from(_cid.to_owned());
-            let bytes = RustBytes::from(_bytes.to_owned());
-            let data = self.block_store_interface.to_owned().put(cid, bytes);
-            if !data.ok {
-                let err_str: String = data.err.into();
-                Err(anyhow::format_err!(err_str))
-            }else {
-                trace!(
-                    "get: cid({:?}) -> data({})",
-                    _cid,
-                    LongVec(_bytes.to_owned())
-                );
-                self.block_store_interface
-                    .to_owned()
-                    .dealloc_after_put(data);
-                Ok(())
-            }
-        
+        let cid = RustBytes::from(_cid.to_owned());
+        let bytes = RustBytes::from(_bytes.to_owned());
+        let data = self.block_store_interface.to_owned().put(cid, bytes);
+        if !data.ok {
+            let err_str: String = data.err.into();
+            Err(anyhow::format_err!(err_str))
+        } else {
+            trace!(
+                "get: cid({:?}) -> data({})",
+                _cid,
+                LongVec(_bytes.to_owned())
+            );
+            self.block_store_interface
+                .to_owned()
+                .dealloc_after_put(data);
+            Ok(())
+        }
     }
 }
 

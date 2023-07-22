@@ -1,17 +1,17 @@
 extern crate libc;
 
-use anyhow::Result;
 use ::core::mem::MaybeUninit as MU;
+use anyhow::Result;
 use libc::{c_char, size_t};
 use libipld::Cid;
 use log::trace;
-use std::boxed::Box;
+
 use std::ffi::{CStr, CString};
 use wnfs::common::Metadata;
 use wnfsutils::private_forest::PrivateDirectoryHelper;
 
-pub trait Empty{
- fn empty() ->  Self;
+pub trait Empty {
+    fn empty() -> Self;
 }
 
 #[derive(Clone)]
@@ -39,32 +39,42 @@ impl From<Vec<u8>> for RustBytes {
         let dst = unsafe { ::core::slice::from_raw_parts_mut(ptr.cast::<MU<u8>>(), len) };
         let src = unsafe { ::core::slice::from_raw_parts(buf.as_ptr().cast::<MU<u8>>(), len) };
         dst.copy_from_slice(src);
-        Self { data: ptr as *mut u8, len, cap }
+        Self {
+            data: ptr as *mut u8,
+            len,
+            cap,
+        }
     }
 }
 
-impl Into<Vec<u8>> for RustBytes{
+impl Into<Vec<u8>> for RustBytes {
     fn into(self) -> Vec<u8> {
         let result: Vec<u8>;
-        if self.data.is_null(){
+        if self.data.is_null() {
             result = Vec::new();
-        }else {
-            result = unsafe {std::slice::from_raw_parts(self.data as *const u8, self.len as usize).to_vec()};
+        } else {
+            result = unsafe {
+                std::slice::from_raw_parts(self.data as *const u8, self.len as usize).to_vec()
+            };
         }
         result
     }
 }
 
 impl Empty for RustBytes {
-    fn empty() ->  Self {
-        Self { data: ::std::ptr::null_mut(), len: 0, cap: 0 }
+    fn empty() -> Self {
+        Self {
+            data: ::std::ptr::null_mut(),
+            len: 0,
+            cap: 0,
+        }
     }
 }
 
-impl RustBytes{
+impl RustBytes {
     fn free(self) {
-        if !self.data.is_null(){
-            let s = unsafe { Vec::from_raw_parts(self.data as *mut u8, self.len, self.cap) };
+        if !self.data.is_null() {
+            let _s = unsafe { Vec::from_raw_parts(self.data as *mut u8, self.len, self.cap) };
         }
     }
 }
@@ -78,28 +88,37 @@ pub struct RustString {
 impl From<String> for RustString {
     fn from(value: String) -> Self {
         trace!("**********************From<String> for RustString  started**************");
-        trace!("**********************From<String> for RustString  text={:?}", value);
-        Self {   str:  CString::new(value)
-            .expect("Failed to serialize string")
-            .into_raw() }
+        trace!(
+            "**********************From<String> for RustString  text={:?}",
+            value
+        );
+        Self {
+            str: CString::new(value)
+                .expect("Failed to serialize string")
+                .into_raw(),
+        }
     }
 }
 
-impl Into<String> for RustString{
+impl Into<String> for RustString {
     fn into(self) -> String {
         trace!("**********************Into<String> for RustString started**************");
-        if self.str.is_null(){
+        if self.str.is_null() {
             "".into()
-        }else{
-            let _str: String = unsafe { CStr::from_ptr(self.str)
-                .to_str()
-                .expect("Failed to parse cid")
-                .into() };
-        
-            trace!("**********************Into<String> for RustString text={}", _str);
+        } else {
+            let _str: String = unsafe {
+                CStr::from_ptr(self.str)
+                    .to_str()
+                    .expect("Failed to parse cid")
+                    .into()
+            };
+
+            trace!(
+                "**********************Into<String> for RustString text={}",
+                _str
+            );
             _str
         }
-
     }
 }
 
@@ -117,11 +136,9 @@ impl TryInto<Cid> for RustString {
                 cid.to_owned().to_string()
             );
             Ok(cid.to_owned())
-        }else{
+        } else {
             Err(cid_res.err().unwrap().to_string())
         }
-
-
     }
 }
 
@@ -132,28 +149,26 @@ impl From<Cid> for RustString {
 }
 
 impl Empty for RustString {
-    fn empty() ->  Self {
-        Self { str: ::std::ptr::null_mut() }
-    }
-}
-
-impl RustString{
-    fn free(self) {
-        if !self.str.is_null(){
-            unsafe {
-                CString::from_raw(self.str as *mut c_char)
-            };
+    fn empty() -> Self {
+        Self {
+            str: ::std::ptr::null_mut(),
         }
     }
 }
 
+impl RustString {
+    fn free(self) {
+        if !self.str.is_null() {
+            unsafe { CString::from_raw(self.str as *mut c_char) };
+        }
+    }
+}
 
 #[repr(C)]
-pub struct RustVoid {
-}
+pub struct RustVoid {}
 impl Empty for RustVoid {
-    fn empty() ->  Self {
-        Self {  }
+    fn empty() -> Self {
+        Self {}
     }
 }
 
@@ -168,17 +183,17 @@ pub struct RustResult<T> {
 impl<T: Empty> RustResult<T> {
     pub fn error(err: RustString) -> Self {
         Self {
-                ok: false,
-                err: err,
-                result: T::empty(),
+            ok: false,
+            err: err,
+            result: T::empty(),
         }
     }
 
     pub fn ok(result: T) -> Self {
         Self {
-                ok: true,
-                err: RustString::empty(),
-                result,
+            ok: true,
+            err: RustString::empty(),
+            result,
         }
     }
 }
@@ -218,7 +233,6 @@ pub fn prepare_ls_output(ls_result: Vec<(String, Metadata)>) -> Result<Vec<u8>, 
     }
     Ok(result)
 }
-
 
 #[no_mangle]
 pub extern "C" fn rust_result_string_free(arg: RustResult<RustString>) {

@@ -1,20 +1,15 @@
 #[cfg(test)]
 mod ios_tests {
     use crate::{
-        blockstore_interface::{BlockStoreInterface},
-        c_types::{
-            RustResult, RustString, RustBytes, RustVoid,
-        },
+        blockstore_interface::BlockStoreInterface,
+        c_types::{RustBytes, RustResult, RustString, RustVoid},
         ios::*,
     };
     use libc::c_void;
     use libipld::Cid;
     use once_cell::sync::Lazy;
     use sha256::digest;
-    use std::{
-        fs,
-        ptr,
-    };
+    use std::{fs, ptr};
     use wnfs::common::CODEC_DAG_CBOR;
     use wnfsutils::{blockstore::FFIStore, kvstore::KVBlockStore};
 
@@ -28,16 +23,11 @@ mod ios_tests {
     static STORE: Lazy<KVBlockStore> =
         Lazy::new(|| KVBlockStore::new(String::from("./tmp/test_db"), CODEC_DAG_CBOR));
 
-    extern "C" fn get(
-        _userdata: *mut c_void,
-        _cid: RustBytes,
-    ) -> RustResult<RustBytes> {
-
-            let cid = _cid.into();
-            let data = STORE.get_block(cid).unwrap();
-            let tmp1 = RustBytes::from(data);
-            RustResult::ok(tmp1)
-        
+    extern "C" fn get(_userdata: *mut c_void, _cid: RustBytes) -> RustResult<RustBytes> {
+        let cid = _cid.into();
+        let data = STORE.get_block(cid).unwrap();
+        let tmp1 = RustBytes::from(data);
+        RustResult::ok(tmp1)
     }
 
     extern "C" fn put(
@@ -45,12 +35,10 @@ mod ios_tests {
         _cid: RustBytes,
         _bytes: RustBytes,
     ) -> RustResult<RustVoid> {
-  
-            let cid: Vec<u8> = _cid.into();
-            let bytes = _bytes.into();
-            let _data = STORE.put_block(cid.into(), bytes).unwrap();
-            RustResult::ok(RustVoid {  })
-        
+        let cid: Vec<u8> = _cid.into();
+        let bytes = _bytes.into();
+        let _data = STORE.put_block(cid.into(), bytes).unwrap();
+        RustResult::ok(RustVoid {})
     }
 
     extern "C" fn dealloc_after_get(obj: RustResult<RustBytes>) {
@@ -68,7 +56,6 @@ mod ios_tests {
             get_fn: get,
             dealloc_after_get: dealloc_after_get,
             dealloc_after_put: dealloc_after_put,
-
         };
         std::mem::forget(&result);
         result
@@ -81,7 +68,7 @@ mod ios_tests {
 
             let mut cfg = init_native(
                 get_block_store_interface(),
-                wnfs_key_string.to_owned().into()
+                wnfs_key_string.to_owned().into(),
             );
             let mut cid = test_cfg(cfg);
 
@@ -119,7 +106,7 @@ mod ios_tests {
                     RustString::from("root/testfrompath.txt".to_string()),
                 );
 
-                let content =  String::from_utf8(content_from_path.result.into()).unwrap();
+                let content = String::from_utf8(content_from_path.result.into()).unwrap();
                 assert_eq!(content, test_content.to_owned().to_string());
                 println!("read_file_from_path. content={}", content);
             }
@@ -176,7 +163,7 @@ mod ios_tests {
                     cid.into(),
                     RustString::from("root/testfrompathcp.txt".to_string()),
                 );
-                let content: String =  String::from_utf8(content_cp.result.into()).unwrap();
+                let content: String = String::from_utf8(content_cp.result.into()).unwrap();
                 println!("cp. content_cp={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -197,7 +184,7 @@ mod ios_tests {
                     RustString::from("root/testfrompathmv.txt".to_string()),
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content: String =  String::from_utf8(content_mv.result.into()).unwrap();
+                let content: String = String::from_utf8(content_mv.result.into()).unwrap();
                 println!("mv. content_mv={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -217,7 +204,7 @@ mod ios_tests {
                     RustString::from("root/testfrompathmv.txt".to_string()),
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content: String =  String::from_utf8(content_rm1.result.into()).unwrap();
+                let content: String = String::from_utf8(content_rm1.result.into()).unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -237,7 +224,7 @@ mod ios_tests {
                     RustString::from("root/testfrompathcp.txt".to_string()),
                 );
                 println!("len: {}, cap: {}", len, capacity);
-                let content: String =  String::from_utf8(content_rm2.result.into()).unwrap();
+                let content: String = String::from_utf8(content_rm2.result.into()).unwrap();
                 println!("rm#1. content_rm#1={}", content);
                 assert_eq!(content, "".to_string());
             }
@@ -274,10 +261,9 @@ mod ios_tests {
                     get_block_store_interface(),
                     cid.into(),
                     RustString::from("root/test.txt".to_string()),
-
                 );
 
-                let content: String =  String::from_utf8(content_test.result.into()).unwrap();
+                let content: String = String::from_utf8(content_test.result.into()).unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }
@@ -301,7 +287,7 @@ mod ios_tests {
                     cid.into(),
                     RustString::from("root/test.txt".to_string()),
                 );
-                let content: String =  String::from_utf8(content_reloaded.result.into()).unwrap();
+                let content: String = String::from_utf8(content_reloaded.result.into()).unwrap();
                 println!("read. content={}", content);
                 assert_eq!(content, test_content.to_string());
             }

@@ -11,10 +11,7 @@ pub struct BlockStoreInterface {
         cid: RustBytes,
         bytes: RustBytes,
     ) -> RustResult<RustVoid>,
-    pub get_fn: extern "C" fn(
-        userdata: *mut c_void,
-        cid: RustBytes,
-    ) -> RustResult<RustBytes>,
+    pub get_fn: extern "C" fn(userdata: *mut c_void, cid: RustBytes) -> RustResult<RustBytes>,
     pub dealloc_after_get: extern "C" fn(data: RustResult<RustBytes>),
     pub dealloc_after_put: extern "C" fn(data: RustResult<RustVoid>),
 }
@@ -22,11 +19,7 @@ pub struct BlockStoreInterface {
 unsafe impl Send for BlockStoreInterface {}
 
 impl BlockStoreInterface {
-    pub fn put(
-        self,
-        cid: RustBytes,
-        bytes: RustBytes,
-    ) -> RustResult<RustVoid> {
+    pub fn put(self, cid: RustBytes, bytes: RustBytes) -> RustResult<RustVoid> {
         let result = (self.put_fn)(self.userdata, cid, bytes);
         std::mem::forget(self);
         result
