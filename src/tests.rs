@@ -12,9 +12,7 @@ mod ios_tests {
     use once_cell::sync::Lazy;
     use sha256::digest;
     use std::{
-        ffi::{CStr, CString},
         fs,
-        os::raw::c_char,
         ptr,
     };
     use wnfs::common::CODEC_DAG_CBOR;
@@ -34,14 +32,12 @@ mod ios_tests {
         _userdata: *mut c_void,
         _cid: RustBytes,
     ) -> RustResult<RustBytes> {
-        let mut capacity: usize = 0;
-        let mut len: usize = 0;
-        unsafe {
+
             let cid = _cid.into();
             let data = STORE.get_block(cid).unwrap();
             let tmp1 = RustBytes::from(data);
             RustResult::ok(tmp1)
-        }
+        
     }
 
     extern "C" fn put(
@@ -49,16 +45,20 @@ mod ios_tests {
         _cid: RustBytes,
         _bytes: RustBytes,
     ) -> RustResult<RustVoid> {
-        unsafe {
+  
             let cid: Vec<u8> = _cid.into();
             let bytes = _bytes.into();
-            let data = STORE.put_block(cid.into(), bytes).unwrap();
+            let _data = STORE.put_block(cid.into(), bytes).unwrap();
             RustResult::ok(RustVoid {  })
-        }
+        
     }
 
-    extern "C" fn dealloc_after_get(_: RustResult<RustBytes>) {}
-    extern "C" fn dealloc_after_put(_: RustResult<RustVoid>) {}
+    extern "C" fn dealloc_after_get(obj: RustResult<RustBytes>) {
+        println!("obj: {}", obj.ok);
+    }
+    extern "C" fn dealloc_after_put(obj: RustResult<RustVoid>) {
+        println!("obj: {}", obj.ok);
+    }
 
     fn get_block_store_interface() -> BlockStoreInterface {
         let userdata: *mut c_void = ptr::null_mut();
@@ -153,8 +153,8 @@ mod ios_tests {
             }
             // CP: target folder must exists
             {
-                let mut len: usize = 0;
-                let mut capacity: usize = 0;
+                let _len: usize = 0;
+                let _capacity: usize = 0;
 
                 cfg = mkdir_native(
                     get_block_store_interface(),
@@ -182,8 +182,8 @@ mod ios_tests {
             }
             // MV: target folder must exists
             {
-                let mut len: usize = 0;
-                let mut capacity: usize = 0;
+                let len: usize = 0;
+                let capacity: usize = 0;
                 cfg = mv_native(
                     get_block_store_interface(),
                     cid.into(),
@@ -203,8 +203,8 @@ mod ios_tests {
             }
             // RM#1
             {
-                let mut len: usize = 0;
-                let mut capacity: usize = 0;
+                let len: usize = 0;
+                let capacity: usize = 0;
                 cfg = rm_native(
                     get_block_store_interface(),
                     cid.into(),
@@ -223,8 +223,8 @@ mod ios_tests {
             }
             // RM#2
             {
-                let mut len: usize = 0;
-                let mut capacity: usize = 0;
+                let len: usize = 0;
+                let capacity: usize = 0;
                 cfg = rm_native(
                     get_block_store_interface(),
                     cid.into(),

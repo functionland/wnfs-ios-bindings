@@ -1,6 +1,7 @@
 extern crate libc;
 
 use anyhow::Result;
+use ::core::mem::MaybeUninit as MU;
 use libc::{c_char, size_t};
 use libipld::Cid;
 use log::trace;
@@ -17,45 +18,53 @@ pub trait Empty{
 #[repr(C)]
 pub struct RustBytes {
     pub data: *const u8,
-    pub len: size_t,
+    len: size_t,
+    cap: size_t,
 }
 
 impl From<Vec<u8>> for RustBytes {
     fn from(value: Vec<u8>) -> Self {
-        let mut buf = value.into_boxed_slice();
-        let data = buf.as_mut_ptr();
+        // let mut buf = std::mem::ManuallyDrop::new(value);
+        // let data = buf.as_mut_ptr();
+        // let len = buf.len();
+        // Self { data, len }
+
+        let buf = value;
         let len = buf.len();
-        std::mem::forget(buf);
-        Self { data, len }
+        let cap = buf.capacity();
+        let ptr = unsafe { ::libc::malloc(len) };
+        if ptr.is_null() {
+            return Self::empty();
+        }
+        let dst = unsafe { ::core::slice::from_raw_parts_mut(ptr.cast::<MU<u8>>(), len) };
+        let src = unsafe { ::core::slice::from_raw_parts(buf.as_ptr().cast::<MU<u8>>(), len) };
+        dst.copy_from_slice(src);
+        Self { data: ptr as *mut u8, len, cap }
     }
 }
 
 impl Into<Vec<u8>> for RustBytes{
     fn into(self) -> Vec<u8> {
+        let result: Vec<u8>;
         if self.data.is_null(){
-            Vec::new()
+            result = Vec::new();
         }else {
-        let result = unsafe {std::slice::from_raw_parts(self.data as *const u8, self.len as usize).to_vec()};
-        std::mem::forget(&result);
-        result
+            result = unsafe {std::slice::from_raw_parts(self.data as *const u8, self.len as usize).to_vec()};
         }
+        result
     }
 }
 
 impl Empty for RustBytes {
     fn empty() ->  Self {
-        Self { data: ::std::ptr::null_mut(), len: 0 }
+        Self { data: ::std::ptr::null_mut(), len: 0, cap: 0 }
     }
 }
 
-impl Drop for RustBytes{
-    fn drop(&mut self) {
+impl RustBytes{
+    fn free(self) {
         if !self.data.is_null(){
-            let s = unsafe { std::slice::from_raw_parts_mut(self.data as *mut u8, self.len) };
-            let s = s.as_mut_ptr();
-            unsafe {
-                Box::from_raw(s);
-            }
+            let s = unsafe { Vec::from_raw_parts(self.data as *mut u8, self.len, self.cap) };
         }
     }
 }
@@ -128,12 +137,12 @@ impl Empty for RustString {
     }
 }
 
-impl Drop for RustString{
-    fn drop(&mut self) {
+impl RustString{
+    fn free(self) {
         if !self.str.is_null(){
             unsafe {
-                drop(CString::from_raw(self.str as *mut c_char))
-            }
+                CString::from_raw(self.str as *mut c_char)
+            };
         }
     }
 }
@@ -157,22 +166,6 @@ pub struct RustResult<T> {
 }
 
 impl<T: Empty> RustResult<T> {
-    fn from(err: Option<RustString>, result: T) -> Self {
-        match err {
-            Some(err) => Self {
-                ok: false,
-                err: err,
-                result,
-            },
-            None => Self {
-                ok: true,
-                err: RustString { str: ::std::ptr::null_mut() },
-                result,
-            },
-        }
-        
-    }
-
     pub fn error(err: RustString) -> Self {
         Self {
                 ok: false,
@@ -229,15 +222,10 @@ pub fn prepare_ls_output(ls_result: Vec<(String, Metadata)>) -> Result<Vec<u8>, 
 
 #[no_mangle]
 pub extern "C" fn rust_result_string_free(arg: RustResult<RustString>) {
-    drop(arg)
-}
-
-#[no_mangle]
-pub extern "C" fn rust_result_void_free(arg: *mut RustResult<RustVoid>) {
-    drop(arg)
+    arg.result.free();
 }
 
 #[no_mangle]
 pub extern "C" fn rust_result_bytes_free(arg: RustResult<RustBytes>) {
-    drop(arg)
+    arg.result.free();
 }

@@ -14,7 +14,7 @@ pub mod ios {
     use libipld::Cid;
     use log::trace;
     use std::boxed::Box;
-    use std::os::raw::c_char;
+    
     use wnfsutils::blockstore::FFIFriendlyBlockStore;
     use wnfsutils::private_forest::PrivateDirectoryHelper;
 
