@@ -38,7 +38,7 @@ mod ios_tests {
         let cid: Vec<u8> = _cid.into();
         let bytes = _bytes.into();
         let _data = STORE.put_block(cid.into(), bytes).unwrap();
-        RustResult::ok(RustVoid {})
+        RustResult::ok(RustVoid::void())
     }
 
     extern "C" fn dealloc_after_get(obj: RustResult<RustBytes>) {

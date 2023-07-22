@@ -23,25 +23,24 @@ pub mod ios {
         cid: RustString,
     ) -> RustResult<RustVoid> {
         trace!("**********************load_with_wnfs_key_native started**************");
-        unsafe {
-            let store = BridgedStore::new(block_store_interface);
-            let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
-            let wnfs_key: Vec<u8> = wnfs_key.into();
-            let cid_res: Result<Cid, String> = cid.try_into();
-            if cid_res.is_err() {
-                RustResult::error(RustString::from(cid_res.err().unwrap().to_string()))
+
+        let store = BridgedStore::new(block_store_interface);
+        let block_store = &mut FFIFriendlyBlockStore::new(Box::new(store));
+        let wnfs_key: Vec<u8> = wnfs_key.into();
+        let cid_res: Result<Cid, String> = cid.try_into();
+        if cid_res.is_err() {
+            RustResult::error(RustString::from(cid_res.err().unwrap().to_string()))
+        } else {
+            let cid = cid_res.unwrap();
+            let helper_res =
+                PrivateDirectoryHelper::synced_load_with_wnfs_key(block_store, cid, wnfs_key);
+            trace!("**********************load_with_wnfs_key_native finished**************");
+            if helper_res.is_ok() {
+                RustResult::ok(RustVoid::void())
             } else {
-                let cid = cid_res.unwrap();
-                let helper_res =
-                    PrivateDirectoryHelper::synced_load_with_wnfs_key(block_store, cid, wnfs_key);
-                trace!("**********************load_with_wnfs_key_native finished**************");
-                if helper_res.is_ok() {
-                    RustResult::ok(RustVoid {})
-                } else {
-                    let msg = helper_res.err().unwrap();
-                    trace!("wnfsError in load_with_wnfs_key_native: {:?}", msg);
-                    RustResult::error(msg.into())
-                }
+                let msg = helper_res.err().unwrap();
+                trace!("wnfsError in load_with_wnfs_key_native: {:?}", msg);
+                RustResult::error(msg.into())
             }
         }
     }
@@ -63,7 +62,7 @@ pub mod ios {
         } else {
             let msg = helper_res.err().unwrap();
             trace!("wnfsError in init_native: {:?}", msg.to_owned());
-            unsafe { RustResult::error(msg.to_owned().into()) }
+            RustResult::error(msg.to_owned().into())
         }
     }
 
@@ -89,20 +88,19 @@ pub mod ios {
                 let helper = &mut helper_res.ok().unwrap();
                 let path_segments = unsafe { prepare_path_segments(path_segments) };
 
-                let filename = unsafe { _filename.into() };
+                let filename = _filename.into();
                 trace!("filename, path: {:?} -- {:?}", filename, path_segments);
                 let write_file_result =
                     helper.synced_write_file_from_path(&path_segments, &filename);
                 trace!("**********************write_file_from_path_native finished**************");
                 if write_file_result.is_ok() {
                     let cid = write_file_result.ok().unwrap();
-                    unsafe {
-                        return RustResult::ok(cid.into());
-                    }
+
+                    return RustResult::ok(cid.into());
                 } else {
                     let msg = write_file_result.err().unwrap();
                     trace!("wnfsError in write_file_from_path_native: {:?}", msg);
-                    unsafe { return RustResult::ok(msg.into()) }
+                    RustResult::ok(msg.into())
                 }
             } else {
                 let msg = &mut helper_res.err().unwrap();
@@ -135,20 +133,20 @@ pub mod ios {
             if helper_res.is_ok() {
                 let helper = &mut helper_res.ok().unwrap();
                 let path_segments = unsafe { prepare_path_segments(path_segments) };
-                let filename = unsafe { _filename.into() };
+                let filename = _filename.into();
 
                 trace!("wnfs11 **********************read_filestream_to_path_native filename created**************");
                 let result = helper.synced_read_filestream_to_path(&filename, &path_segments, 0);
                 trace!("wnfs11 **********************read_filestream_to_path_native finished**************");
                 if result.is_ok() {
-                    unsafe { return RustResult::ok(filename.into()) }
+                    RustResult::ok(filename.into())
                 } else {
                     let err = result.err().unwrap();
                     trace!(
                         "wnfsError occured in read_filestream_to_path_native on result: {:?}",
                         err.to_owned()
                     );
-                    unsafe { return RustResult::error(err.to_owned().into()) }
+                    RustResult::error(err.to_owned().into())
                 }
             } else {
                 let msg = helper_res.err().unwrap();
@@ -181,7 +179,7 @@ pub mod ios {
             if helper_res.is_ok() {
                 let helper = &mut helper_res.ok().unwrap();
                 let path_segments = unsafe { prepare_path_segments(path_segments) };
-                let filename = unsafe { _filename.into() };
+                let filename = _filename.into();
 
                 trace!("wnfs11 **********************read_file_to_path_native filename created**************");
                 let result = helper.synced_read_file_to_path(&path_segments, &filename);
@@ -189,14 +187,14 @@ pub mod ios {
                     "wnfs11 **********************read_file_to_path_native finished**************"
                 );
                 if result.is_ok() {
-                    unsafe { return RustResult::ok(filename.into()) }
+                    RustResult::ok(filename.into())
                 } else {
                     let err = result.err().unwrap();
                     trace!(
                         "wnfsError occured in read_file_to_path_native on result: {:?}",
                         err.to_owned()
                     );
-                    unsafe { return RustResult::error(err.to_owned().into()) }
+                    RustResult::error(err.to_owned().into())
                 }
             } else {
                 let msg = helper_res.err().unwrap();
@@ -343,9 +341,7 @@ pub mod ios {
                 trace!("**********************mv_native finished**************");
                 if result.is_ok() {
                     let cid = result.ok().unwrap();
-                    unsafe {
-                        return RustResult::ok(cid.into());
-                    }
+                    RustResult::ok(cid.into())
                 } else {
                     let msg = result.err().unwrap();
                     trace!("wnfsError occured in mv_native: {:?}", msg.to_owned());
@@ -384,9 +380,7 @@ pub mod ios {
                 trace!("**********************cp_native finished**************");
                 if result.is_ok() {
                     let cid = result.ok().unwrap();
-                    unsafe {
-                        return RustResult::ok(cid.into());
-                    }
+                    RustResult::ok(cid.into())
                 } else {
                     let msg = result.err().unwrap();
                     trace!("wnfsError occured in cp_native: {:?}", msg.to_owned());

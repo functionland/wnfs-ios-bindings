@@ -2,7 +2,7 @@ extern crate libc;
 
 use ::core::mem::MaybeUninit as MU;
 use anyhow::Result;
-use libc::{c_char, size_t};
+use libc::{c_char, c_void, size_t};
 use libipld::Cid;
 use log::trace;
 
@@ -18,8 +18,8 @@ pub trait Empty {
 #[repr(C)]
 pub struct RustBytes {
     pub data: *const u8,
-    len: size_t,
-    cap: size_t,
+    pub len: size_t,
+    pub cap: size_t,
 }
 
 impl From<Vec<u8>> for RustBytes {
@@ -165,10 +165,19 @@ impl RustString {
 }
 
 #[repr(C)]
-pub struct RustVoid {}
+pub struct RustVoid {
+    pub result: *mut c_void,
+}
+impl RustVoid {
+    pub fn void() -> Self {
+        Self::empty()
+    }
+}
 impl Empty for RustVoid {
     fn empty() -> Self {
-        Self {}
+        Self {
+            result: ::std::ptr::null_mut() as *mut _,
+        }
     }
 }
 
