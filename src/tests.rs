@@ -2,7 +2,7 @@
 mod ios_tests {
     use crate::{
         blockstore_interface::BlockStoreInterface,
-        c_types::{RustBytes, RustResult, RustString, RustVoid},
+        c_types::{RustBytes, RustResult, RustString, RustVoid, prepare_ls_output},
         ios::*,
     };
     use libc::c_void;
@@ -75,13 +75,12 @@ mod ios_tests {
             
             let filenames_initial = ls_native(
                 get_block_store_interface()
-                ,cid.into(),
-                ,RustString::from("root/".into()),
-                &mut len, &mut capacity
+                ,cid.into()
+                ,RustString::from(String::from("root/"))
             );
 
-            let names = String::from_raw_parts(filenames_initial, len as usize, capacity as usize);
-            println!("ls_initial. filenames_initial={}", names);
+            let names: Vec<u8> = filenames_initial.result.into();
+            println!("ls_initial. filenames_initial={:?}", names);
             // Write file
             let test_content = "Hello, World!";
             fs::write("./tmp/test.txt", test_content.to_owned()).expect("Unable to write file");

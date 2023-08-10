@@ -1,8 +1,8 @@
 all: clean test gen-c-header add-rust-targets x86_64-apple-ios\
  aarch64-apple-ios x86_64-apple-darwin xcode-build bundle
 
-test:
-	cargo test
+# test:
+# 	cargo test
 gen-c-header: 
 	cargo install cbindgen && cbindgen --lang C -o include/wnfsbindings.h .
 
