@@ -12,7 +12,7 @@ crate-type = [ "staticlib" ]
 [dependencies]
 libc = "0.2.139"
 wnfs = {git= "https://github.com/wnfs-wg/rs-wnfs.git", tag="wnfs-v0.1.22"}
-wnfsutils = { git = "https://github.com/functionland/wnfs-utils.git", tag = "v1.0.4" }
+wnfsutils = { git = "https://github.com/functionland/wnfs-utils.git", tag = "v1.1.4" }
 
 libipld = { version = "0.16", features = ["dag-cbor", "derive", "serde-codec"] }
 anyhow = "1.0.66"

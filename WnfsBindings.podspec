@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|  
     s.name              = 'WnfsBindings' # Name for your pod
-    s.version           = '1.0.0'
+    s.version           = '1.1.0'
     s.summary           = 'Swift bindings for the rust WNFS library'
     s.homepage          = 'https://github.com/functionland/wnfs-ios-bindings'
 
