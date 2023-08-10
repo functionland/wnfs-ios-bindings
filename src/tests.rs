@@ -72,20 +72,16 @@ mod ios_tests {
             );
             let mut cid = test_cfg(cfg);
 
-            /*
-            let mut len: usize = 0;
-            let mut capacity: usize = 0;
+            
             let filenames_initial = ls_native(
                 get_block_store_interface()
-                ,RustString::from("bafyreieqp253whdfdrky7hxpqezfwbkjhjdbxcq4mcbp6bqf4jdbncbx4y".into())
-                ,RustString::from("{\"saturated_name_hash\":[229,31,96,28,24,238,207,22,36,150,191,37,235,68,191,144,219,250,5,97,85,208,156,134,137,74,25,209,6,66,250,127],\"content_key\":[172,199,245,151,207,21,26,76,52,109,93,57,118,232,9,230,149,46,37,137,174,42,119,29,102,175,25,149,213,204,45,15],\"revision_key\":[17,5,78,59,8,135,144,240,41,248,135,168,222,186,158,240,100,10,129,4,180,55,126,115,146,239,22,177,207,118,169,51]}".into())
+                ,cid.into(),
                 ,RustString::from("root/".into()),
                 &mut len, &mut capacity
             );
+
             let names = String::from_raw_parts(filenames_initial, len as usize, capacity as usize);
             println!("ls_initial. filenames_initial={}", names);
-            cbytes_free(filenames_initial, len, capacity);
-            */
             // Write file
             let test_content = "Hello, World!";
             fs::write("./tmp/test.txt", test_content.to_owned()).expect("Unable to write file");
