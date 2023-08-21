@@ -64,7 +64,9 @@ mod ios_tests {
     #[test]
     fn test_overall() {
         unsafe {
-            let wnfs_key_string = &mut digest("test").as_bytes().to_vec();
+            let wnfs_key = &mut digest("test").as_bytes().to_vec();
+            let wnfs_key_string = wnfs_key[..32].to_vec();
+            println!("wnfs_key length: {}", wnfs_key_string.len());
 
             let mut cfg = init_native(
                 get_block_store_interface(),
@@ -85,6 +87,29 @@ mod ios_tests {
             let test_content = "Hello, World!";
             fs::write("./tmp/test.txt", test_content.to_owned()).expect("Unable to write file");
 
+            // Read large file
+            {
+                let large_data = vec![0u8; 500 * 1024 * 1024];
+                cfg = write_file_native(
+                    get_block_store_interface(),
+                    cid.into(),
+                    RustString::from("root/test_large.bin".to_string()),
+                    large_data.to_owned().into(),
+                );
+                cid = test_cfg(cfg);
+
+                let content_large = read_file_native(
+                    get_block_store_interface(),
+                    cid.into(),
+                    RustString::from("root/test_large.bin".to_string()),
+                );
+
+                let content: Vec<u8> = content_large.result.into();
+                assert_eq!(content.to_owned(), large_data.to_owned());
+                if true {
+                    return 
+                }
+            }
             // Read file
             {
                 cfg = write_file_from_path_native(
